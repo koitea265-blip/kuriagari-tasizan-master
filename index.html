@@ -552,7 +552,6 @@
             lastGuideTime: 0,
             titles: ["たしざん みならい", "たしざん しゅぎょうちゅう", "たしざん めいじん", "たしざん たつじん", "たしざん おう", "ひっさんの かみさま"],
             counts: {}, layoutMap: {}, dragging: null,
-            // 繰り上がり発生の記憶フラグ
             carry10Triggered: false,
             carry100Triggered: false
         };
@@ -571,7 +570,7 @@
             "つぎの もんだいを おしてね"
         ];
 
-        // 状態更新用関数（早期定義）
+        // 状態更新用関数
         function updateLevelUI() {
             const levelNum = Math.floor(state.questionCount / 5) + 1;
             if (els.levelDisplay) els.levelDisplay.textContent = `レベル: ${levelNum}`;
@@ -765,6 +764,7 @@
             state.counts[sourceKey] -= 10; 
             state.counts[`carry-${val*10}`]++; 
             state.layoutMap[`carry-${val*10}`].push({val: val*10, active: true}); 
+            // くり上げボタンを押したのでフラグを確定させる
             if (val === 1) state.carry10Triggered = true;
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
@@ -772,10 +772,11 @@
         }
         
         /**
-         * 【修正】答え自動モードの同期ロジック
-         * 1. 繰り上がりが発生（10個以上下ろされた）していても、ボタンを押す（Triggered）前は、総数を表示（例: 12）
-         * 2. ボタンが押されたら、繰り上がり枠に「1」を表示し、答えの欄は 1桁（mod 10）にする
-         * 3. ただし、十の位や百の位の「答え」は、実際にその位の「こたえ(bot)」エリアにブロックが下ろされた数のみを数字にする。
+         * 答え自動モードの同期ロジック
+         * ユーザーの要望に基づき：
+         * 1. くりあげボタンを押す前は、その位のゾーンの総数をそのまま表示（12など）
+         * 2. くりあげボタンを押した後は、くり上がり枠に「1」を入れ、答えは一桁にする。
+         * 3. 十の位や百の位の「答え」は、実際にその位の「こたえ(bot)」エリアにブロックが下ろされた数のみを表示する。
          */
         function syncHissanWithVisuals() {
             if (!els.settingAnswer.checked) return; 
@@ -786,7 +787,7 @@
             const vc10 = state.counts['carry-10'];
             const vc100 = state.counts['carry-100'];
 
-            // 初期状態判定（何も動かしていない、かつフラグも立っていない）
+            // 初期状態判定
             if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0 && !state.carry10Triggered && !state.carry100Triggered) {
                 if (document.getElementById('ans-1')) document.getElementById('ans-1').value = "";
                 if (document.getElementById('ans-10')) document.getElementById('ans-10').value = "";
@@ -794,7 +795,7 @@
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
-            // くり上がり表示：フラグがあるときのみ「1」を入れる
+            // 【重要】くり上がり枠：実際に「くりあげボタン」でフラグが確定したときのみ「1」を入れる
             els.carry10.value = state.carry10Triggered ? "1" : "";
             els.carry100.value = state.carry100Triggered ? "1" : "";
 
@@ -807,13 +808,12 @@
             
             // 十の位
             if (document.getElementById('ans-10')) {
-                // 十の位のベースは 実際に「こたえ」エリアにあるブロックの数
+                // 実際に「こたえ」エリアにあるブロックの数だけを見る
                 const currentTensInAnswerZone = b10; 
                 // 百の位にくりあげるボタンが押されたら一桁、そうでなければそのまま表示
                 const val10 = state.carry100Triggered ? (currentTensInAnswerZone % 10) : currentTensInAnswerZone;
                 
-                // 表示判定（0サプレス）：こたえエリアにブロックがある、または百の位に何かある場合
-                // ※ ここが重要。繰り上がりの「1」ができた直後（b10が0のとき）は空欄にする。
+                // 0サプレス：ブロックがある、または百の位に何かある、または十の位で繰り上げ操作済みの場合に表示
                 if (currentTensInAnswerZone > 0 || b100 > 0 || state.carry100Triggered) {
                     document.getElementById('ans-10').value = val10;
                 } else {
