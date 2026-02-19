@@ -34,7 +34,6 @@
             color: var(--text-color); 
             margin: 0; 
             padding: 0; 
-            /* 【修正】上下左右中央に配置するための設定 */
             display: flex; 
             justify-content: center; 
             align-items: center; 
@@ -104,7 +103,7 @@
         .mode-radio-label:hover { background: rgba(0,0,0,0.05); }
         .mode-radio-label input { cursor: pointer; width: 16px; height: 16px; margin: 0; }
 
-        .mini-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 10px; pointer-events: none; }
+        .mini-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; pointer-events: none; }
         .mini-coin { background: radial-gradient(circle at 30% 30%, #ffffff, #e0e0e0 40%, #bfbfbf 90%); border: 1px solid #a0a0a0; color: #555; font-family: serif; }
         .mini-block { background-color: var(--block-yellow); border: 1px solid #9c7c00; border-radius: 2px; width: 16px; height: 16px; }
 
@@ -127,7 +126,7 @@
 
         .visual-guide-container { display: flex; justify-content: space-around; gap: 10px; margin-top: 5px; }
         .visual-guide-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; background: #fff; padding: 8px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-        .visual-guide-item svg { width: 100%; max-width: 180px; height: auto; }
+        .visual-guide-item svg { width: 100%; max-width: 140px; height: auto; }
         .visual-guide-text { font-size: 0.9rem; font-weight: bold; color: #333; line-height: 1.4; text-align: center; }
         
         .level-badge, .title-badge, .counter-badge { padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; color: white; }
@@ -503,7 +502,10 @@
             lastPraiseIndex: -1,
             lastGuideTime: 0,
             titles: ["たしざん みならい", "たしざん しゅぎょうちゅう", "たしざん めいじん", "たしざん たつじん", "たしざん おう", "ひっさんの かみさま"],
-            counts: {}, layoutMap: {}, dragging: null
+            counts: {}, layoutMap: {}, dragging: null,
+            // 【修正】繰り上がり発生の記憶フラグ
+            carry10Triggered: false,
+            carry100Triggered: false
         };
 
         const praises = [
@@ -515,7 +517,7 @@
             "おっ！だいせいかーい！すごいすごーい！",
             "そのちょうしー！どんどんいこー！",
             "ピンポーン！だいせいかーい！",
-            "おめでとーーー！30もん たっせいだね！きみは もう りっぱな ひっさんマスターだよ！さいこうだよ！", 
+            "おめでとーーー！30もん たっせいだね！きみは もう りっぱな ひっ算マスターだよ！さいこうだよ！", 
             "あれれー？もういちど かんがえてみてね", 
             "つぎの もんだいを おしてね"
         ];
@@ -685,14 +687,17 @@
             state.counts[sourceKey] -= 10; 
             state.counts[`carry-${val*10}`]++; 
             state.layoutMap[`carry-${val*10}`].push({val: val*10, active: true}); 
+            // くり上げボタンを押したのでフラグを確定させる
+            if (val === 1) state.carry10Triggered = true;
+            if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
         }
         
         /**
-         * 答えじどうモードの同期ロジック
-         * 1. くりあげブロックがないときは、こたえのゾーンの総数をそのまま表示（10を超える場合がある）
-         * 2. くりあげブロックが作成されたら、くり上がり枠に「1」を入れ、ゾーンの数は10引いた数を表示（一桁になる）
+         * 【修正】答えじどうモードの同期ロジック
+         * 1. くりあげブロックがないときでも、こたえのゾーンに10個以上あれば「1」を筆算に出す
+         * 2. くりあげ処理が行われた後は、ブロックが移動しても「1」を消さないように保持する
          */
         function syncHissanWithVisuals() {
             if (!els.settingAnswer.checked) return; 
@@ -703,6 +708,13 @@
             const vc10 = state.counts['carry-10'];
             const vc100 = state.counts['carry-100'];
 
+            // ゾーン内に10個以上あるか、既にくりあげブロックがある場合にフラグを立てる（消さない）
+            if (b1 >= 10 || vc10 > 0) state.carry10Triggered = true;
+            
+            // 十の位も同様。一の位からのくり上がり(1)を含めた合計で判定
+            const logicalTens = b10 + (state.carry10Triggered ? 1 : 0);
+            if (logicalTens >= 10 || vc100 > 0) state.carry100Triggered = true;
+
             // 初期状態判定
             if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0) {
                 if (document.getElementById('ans-1')) document.getElementById('ans-1').value = "";
@@ -711,26 +723,30 @@
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
-            // くり上がり表示：実際に「くりあげボタン」で物理ブロックが作られたときのみ「1」を入れる
-            els.carry10.value = vc10 > 0 ? "1" : "";
-            els.carry100.value = vc100 > 0 ? "1" : "";
+            // くり上がり表示：トリガーフラグに基づいて「1」を維持
+            els.carry10.value = state.carry10Triggered ? "1" : "";
+            els.carry100.value = state.carry100Triggered ? "1" : "";
 
-            // 各桁の表示：現在のゾーンにある「こたえ」の数そのものを表示
-            // 一の位
+            // 各桁の数値表示
             if (document.getElementById('ans-1')) {
-                document.getElementById('ans-1').value = b1;
-            }
-            
-            // 十の位（百の位がある場合は0も表示）
-            if (document.getElementById('ans-10')) {
-                if (b100 === 0 && b10 === 0 && vc100 === 0) {
-                    document.getElementById('ans-10').value = "";
+                // 繰り上げが発生しているなら「一桁」にするが、10個未満でもフラグが立っているなら10引いた値を出す
+                // 筆算のルールに準拠：基本は mod 10 だが、繰り上げ前は 2桁でOK
+                if (state.carry10Triggered) {
+                    document.getElementById('ans-1').value = b1 % 10;
                 } else {
-                    document.getElementById('ans-10').value = b10;
+                    document.getElementById('ans-1').value = b1;
                 }
             }
             
-            // 百の位
+            if (document.getElementById('ans-10')) {
+                const displayTens = state.carry100Triggered ? (b10 % 10) : b10;
+                if (b100 === 0 && b10 === 0 && !state.carry100Triggered && !state.carry10Triggered) {
+                    document.getElementById('ans-10').value = "";
+                } else {
+                    document.getElementById('ans-10').value = displayTens;
+                }
+            }
+            
             if (document.getElementById('ans-100')) {
                 document.getElementById('ans-100').value = b100 === 0 ? "" : b100;
             }
@@ -756,7 +772,12 @@
         }
 
         function generateNextProblem() {
-            state.isAnsweredCorrectly = false; let n1, n2; const count = state.questionCount + 1;
+            state.isAnsweredCorrectly = false; 
+            // 【修正】新問題の時にフラグをリセット
+            state.carry10Triggered = false;
+            state.carry100Triggered = false;
+            
+            let n1, n2; const count = state.questionCount + 1;
             const getUnitWithCarry = () => { const u1 = Math.floor(Math.random() * 9) + 1; const minU2 = 10 - u1; const u2 = Math.floor(Math.random() * (9 - minU2 + 1)) + minU2; return { u1, u2 }; };
             if (count <= 5) { const { u1, u2 } = getUnitWithCarry(); n1 = (Math.floor(Math.random() * 5) + 1) * 10 + u1; n2 = u2; } 
             else if (count <= 10) { const { u1, u2 } = getUnitWithCarry(); n1 = (Math.floor(Math.random() * 9) + 1) * 10 + u1; n2 = u2; } 
