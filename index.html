@@ -190,7 +190,8 @@
         }
         
         .coin-table.mode-coin { grid-template-columns: 1fr 1fr 1fr; }
-        .coin-table.mode-block { grid-template-columns: 220px 240px 1fr; }
+        /* 【修正】ブロックモードでも各列を均等（3等分）にする */
+        .coin-table.mode-block { grid-template-columns: 1fr 1fr 1fr; }
 
         .col-hundred { background-color: #fff0f5 !important; }
         .col-header-hundred { background-color: #ff8a80 !important; color: #fff; }
