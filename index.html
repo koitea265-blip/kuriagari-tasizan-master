@@ -84,12 +84,28 @@
             z-index: 1000;
         }
 
+        /* スタートボタンエリアの黄色い枠 */
+        .start-action-box {
+            border: 4px solid gold;
+            background-color: #fffde7;
+            border-radius: 20px;
+            padding: 10px;
+            margin: 5px auto;
+            width: fit-content;
+            min-width: 250px;
+            text-align: center;
+        }
+
         #start-btn { 
-            background-color: var(--primary-color); box-shadow: 0 4px 0 #2a75c7; 
-            font-size: 1.5rem; padding: 10px; margin: 8px auto; 
+            background-color: var(--primary-color); 
+            box-shadow: 0 4px 0 #2a75c7; 
+            font-size: 1.5rem; 
+            padding: 12px 30px; 
+            margin: 0 auto; 
             animation: pulse 2s infinite;
-            width: 30%; min-width: 200px;
             display: block;
+            width: 100%;
+            border-radius: 50px;
         }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
         
@@ -103,12 +119,12 @@
         .mode-radio-label:hover { background: rgba(0,0,0,0.05); }
         .mode-radio-label input { cursor: pointer; width: 16px; height: 16px; margin: 0; }
 
-        .mini-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; pointer-events: none; }
+        .mini-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 10px; pointer-events: none; }
         .mini-coin { background: radial-gradient(circle at 30% 30%, #ffffff, #e0e0e0 40%, #bfbfbf 90%); border: 1px solid #a0a0a0; color: #555; font-family: serif; }
-        .mini-block { background-color: var(--block-yellow); border: 1px solid #9c7c00; border-radius: 2px; width: 16px; height: 16px; }
+        .mini-block { background-color: var(--block-yellow); border: 1px solid #9c7c00; border-radius: 2px; width: 20px; height: 20px; }
 
         .instruction-area { 
-            background-color: #fff9c4; border-radius: 12px; padding: 8px 15px; margin: 2px auto; width: 98%; 
+            background-color: #fff9c4; border-radius: 12px; padding: 10px 15px; margin: 2px auto; width: 98%; 
             flex: 1; display: flex; flex-direction: column; justify-content: start; overflow-y: auto;
         }
         .instruction-section { 
@@ -126,7 +142,7 @@
 
         .visual-guide-container { display: flex; justify-content: space-around; gap: 10px; margin-top: 5px; }
         .visual-guide-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; background: #fff; padding: 8px; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-        .visual-guide-item svg { width: 100%; max-width: 140px; height: auto; }
+        .visual-guide-item svg { width: 100%; max-width: 180px; height: auto; }
         .visual-guide-text { font-size: 0.9rem; font-weight: bold; color: #333; line-height: 1.4; text-align: center; }
         
         .level-badge, .title-badge, .counter-badge { padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; color: white; }
@@ -134,7 +150,7 @@
         .title-badge { background: var(--primary-color); }
         .counter-badge { background: var(--counter-color); }
 
-        /* メイン画面：ワークスペース */
+        /* ワークスペース */
         .workspace { display: none; flex-direction: row; gap: 15px; align-items: flex-start; margin-top: 5px; flex: 1; overflow: hidden; }
         
         .calc-panel { flex: 0 0 320px; background-color: #fafafa; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -273,6 +289,15 @@
         
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 10000; }
         .modal-content { background: white; padding: 25px; border-radius: 30px; text-align: center; border: 5px solid gold; max-width: 90%; }
+
+        .footer-credit {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid #eee;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -394,7 +419,7 @@
                                 <circle cx="84" cy="36" r="10" fill="url(#grad-coin-1)" stroke="#a0a0a0" /><text x="84" y="40" text-anchor="middle" font-size="9" fill="#555" font-weight="bold">1</text>
                                 <circle cx="108" cy="36" r="10" fill="url(#grad-coin-1)" stroke="#a0a0a0" /><text x="108" y="40" text-anchor="middle" font-size="9" fill="#555" font-weight="bold">1</text>
                             </g>
-                            <span class="visual-guide-text" style="margin-top:5px;">② 10こ あつまったら<br>ボタンを おそう！</span>
+                            <span class="visual-guide-text">② 10こ あつまったら<br>ボタンを おそう！</span>
                         </svg>
                     </div>
                     <div class="visual-guide-item">
@@ -413,7 +438,14 @@
                 </div>
             </div>
             
-            <button id="start-btn" class="btn">けいさん スタート</button>
+            <!-- 【修正】ボタンを黄色い枠のボックスで囲み、余白を調整 -->
+            <div class="start-action-box">
+                <button id="start-btn" class="btn">けいさん スタート</button>
+            </div>
+            
+            <footer class="footer-credit">
+                &copy;2026　くり上がりのあるたし算マスター　ＩＣＴ支援の杜
+            </footer>
         </div>
 
         <main class="workspace" id="main-workspace">
@@ -503,7 +535,6 @@
             lastGuideTime: 0,
             titles: ["たしざん みならい", "たしざん しゅぎょうちゅう", "たしざん めいじん", "たしざん たつじん", "たしざん おう", "ひっさんの かみさま"],
             counts: {}, layoutMap: {}, dragging: null,
-            // 【修正】繰り上がり発生の記憶フラグ
             carry10Triggered: false,
             carry100Triggered: false
         };
@@ -687,18 +718,12 @@
             state.counts[sourceKey] -= 10; 
             state.counts[`carry-${val*10}`]++; 
             state.layoutMap[`carry-${val*10}`].push({val: val*10, active: true}); 
-            // くり上げボタンを押したのでフラグを確定させる
             if (val === 1) state.carry10Triggered = true;
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
         }
         
-        /**
-         * 【修正】答えじどうモードの同期ロジック
-         * 1. くりあげブロックがないときでも、こたえのゾーンに10個以上あれば「1」を筆算に出す
-         * 2. くりあげ処理が行われた後は、ブロックが移動しても「1」を消さないように保持する
-         */
         function syncHissanWithVisuals() {
             if (!els.settingAnswer.checked) return; 
             
@@ -708,14 +733,10 @@
             const vc10 = state.counts['carry-10'];
             const vc100 = state.counts['carry-100'];
 
-            // ゾーン内に10個以上あるか、既にくりあげブロックがある場合にフラグを立てる（消さない）
             if (b1 >= 10 || vc10 > 0) state.carry10Triggered = true;
-            
-            // 十の位も同様。一の位からのくり上がり(1)を含めた合計で判定
             const logicalTens = b10 + (state.carry10Triggered ? 1 : 0);
             if (logicalTens >= 10 || vc100 > 0) state.carry100Triggered = true;
 
-            // 初期状態判定
             if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0) {
                 if (document.getElementById('ans-1')) document.getElementById('ans-1').value = "";
                 if (document.getElementById('ans-10')) document.getElementById('ans-10').value = "";
@@ -723,27 +744,19 @@
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
-            // くり上がり表示：トリガーフラグに基づいて「1」を維持
             els.carry10.value = state.carry10Triggered ? "1" : "";
             els.carry100.value = state.carry100Triggered ? "1" : "";
 
-            // 各桁の数値表示
             if (document.getElementById('ans-1')) {
-                // 繰り上げが発生しているなら「一桁」にするが、10個未満でもフラグが立っているなら10引いた値を出す
-                // 筆算のルールに準拠：基本は mod 10 だが、繰り上げ前は 2桁でOK
-                if (state.carry10Triggered) {
-                    document.getElementById('ans-1').value = b1 % 10;
-                } else {
-                    document.getElementById('ans-1').value = b1;
-                }
+                document.getElementById('ans-1').value = state.carry10Triggered ? (b1 % 10) : b1;
             }
             
             if (document.getElementById('ans-10')) {
-                const displayTens = state.carry100Triggered ? (b10 % 10) : b10;
-                if (b100 === 0 && b10 === 0 && !state.carry100Triggered && !state.carry10Triggered) {
-                    document.getElementById('ans-10').value = "";
+                const val10 = state.carry100Triggered ? (b10 % 10) : b10;
+                if (b10 > 0 || b100 > 0) {
+                    document.getElementById('ans-10').value = val10;
                 } else {
-                    document.getElementById('ans-10').value = displayTens;
+                    document.getElementById('ans-10').value = "";
                 }
             }
             
@@ -773,7 +786,6 @@
 
         function generateNextProblem() {
             state.isAnsweredCorrectly = false; 
-            // 【修正】新問題の時にフラグをリセット
             state.carry10Triggered = false;
             state.carry100Triggered = false;
             
