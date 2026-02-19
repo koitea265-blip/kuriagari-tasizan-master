@@ -407,7 +407,7 @@
                 <div class="instruction-title">3. つかいかた</div>
                 <div class="visual-guide-container">
                     <div class="visual-guide-item">
-                        <!-- 【修正】説明文を図の上に配置 -->
+                        <!-- 説明文を図の上に配置 -->
                         <span class="visual-guide-text">① おかねを 下の<br>わくに うごかそう！</span>
                         <svg viewBox="0 0 100 100">
                             <defs><radialGradient id="grad-coin-1" cx="30%" cy="30%"><stop offset="0%" stop-color="#fff"/><stop offset="40%" stop-color="#e0e0e0"/><stop offset="90%" stop-color="#bfbfbf"/></radialGradient></defs>
@@ -419,7 +419,7 @@
                         </svg>
                     </div>
                     <div class="visual-guide-item">
-                        <!-- 【修正】説明文を図の上に配置 -->
+                        <!-- 説明文を図の上に配置 -->
                         <span class="visual-guide-text">② 10こ あつまったら<br>ボタンを おそう！</span>
                         <svg viewBox="0 0 140 100">
                             <rect x="5" y="32" width="130" height="60" rx="5" fill="rgba(255,87,34,0.05)" stroke="#ff5722" stroke-width="2" stroke-dasharray="4" />
@@ -440,7 +440,7 @@
                         </svg>
                     </div>
                     <div class="visual-guide-item">
-                        <!-- 【修正】説明文を図の上に配置 -->
+                        <!-- 説明文を図の上に配置 -->
                         <span class="visual-guide-text">③ ひっ算の わくに<br>数字を かこう！</span>
                         <svg viewBox="0 0 120 100">
                             <rect x="15" y="20" width="90" height="70" fill="#fff" stroke="#555" stroke-width="2" />
@@ -585,7 +585,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: `Say with extreme enthusiasm and cheerfulness to a child in Japanese: ${text}` }] }],
-                        generationConfig: { responseModalalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
+                        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
                     })
                 });
                 if (!response.ok) return null;
@@ -735,50 +735,71 @@
             state.counts[sourceKey] -= 10; 
             state.counts[`carry-${val*10}`]++; 
             state.layoutMap[`carry-${val*10}`].push({val: val*10, active: true}); 
+            // くり上げボタンを押したのでフラグを確定させる
             if (val === 1) state.carry10Triggered = true;
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
         }
         
+        /**
+         * 【修正】答え自動モードの同期ロジック
+         * ユーザーの要望に基づき：
+         * 1. くりあげボタンを押す前は、その位のゾーンの総数をそのまま表示（12など）
+         * 2. くりあげボタンを押した後は、くり上がり枠に「1」を入れ、答えは一桁にする。
+         * 3. ただし、十の位や百の位の数字は、上の「くり上がり枠にある分」は含めず、
+         * 「こたえ(bot)のゾーンにあるブロックの数」だけを数字にする。
+         */
         function syncHissanWithVisuals() {
             if (!els.settingAnswer.checked) return; 
             
             const b1 = state.counts['bot-1'];
             const b10 = state.counts['bot-10'];
             const b100 = state.counts['bot-100'];
+            // 繰り上がり行にある（まだおろしていない）ブロックの数
             const vc10 = state.counts['carry-10'];
             const vc100 = state.counts['carry-100'];
 
-            if (b1 >= 10 || vc10 > 0) state.carry10Triggered = true;
-            const logicalTens = b10 + (state.carry10Triggered ? 1 : 0);
-            if (logicalTens >= 10 || vc100 > 0) state.carry100Triggered = true;
-
-            if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0) {
+            // 初期状態判定
+            if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0 && !state.carry10Triggered && !state.carry100Triggered) {
                 if (document.getElementById('ans-1')) document.getElementById('ans-1').value = "";
                 if (document.getElementById('ans-10')) document.getElementById('ans-10').value = "";
                 if (document.getElementById('ans-100')) document.getElementById('ans-100').value = "";
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
+            // くり上がり枠：フラグがあるときのみ「1」を入れる
             els.carry10.value = state.carry10Triggered ? "1" : "";
             els.carry100.value = state.carry100Triggered ? "1" : "";
 
+            // 各桁の数値表示
+            // 一の位
             if (document.getElementById('ans-1')) {
+                // ボタンが押されていない時は総数(b1)を表示、押されたら一桁(b1 % 10)を表示
                 document.getElementById('ans-1').value = state.carry10Triggered ? (b1 % 10) : b1;
             }
             
+            // 十の位
             if (document.getElementById('ans-10')) {
-                const val10 = state.carry100Triggered ? (b10 % 10) : b10;
-                if (b10 > 0 || b100 > 0 || state.carry100Triggered) {
+                // 【修正】vc10（くり上がりからまだおろしてない分）は含めない
+                const currentTensInAnswerZone = b10; 
+                // 百の位にくりあげるボタンが押されたら一桁、そうでなければそのまま表示
+                const val10 = state.carry100Triggered ? (currentTensInAnswerZone % 10) : currentTensInAnswerZone;
+                
+                // 0サプレス：ブロックがある場合や、既に100の位に数字がある場合に表示
+                // また、くり上がり枠に1があるだけで表示が確定してしまわないよう、answerZoneの数を見る
+                if (currentTensInAnswerZone > 0 || b100 > 0 || vc100 > 0 || state.carry100Triggered) {
                     document.getElementById('ans-10').value = val10;
                 } else {
                     document.getElementById('ans-10').value = "";
                 }
             }
             
+            // 百の位
             if (document.getElementById('ans-100')) {
-                document.getElementById('ans-100').value = b100 === 0 ? "" : b100;
+                // 【修正】vc100（おろしてない分）は含めない
+                const currentHundredsInAnswerZone = b100;
+                document.getElementById('ans-100').value = currentHundredsInAnswerZone === 0 ? "" : currentHundredsInAnswerZone;
             }
         }
 
