@@ -39,6 +39,7 @@
             touch-action: none; 
             overflow: hidden; 
             -webkit-touch-callout: none;
+            user-select: none;
         }
 
         .app-container { 
@@ -50,7 +51,6 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
             padding: 8px 12px; 
             box-sizing: border-box; 
-            user-select: none; 
             display: flex;
             flex-direction: column;
         }
@@ -70,22 +70,23 @@
         }
         .btn:active { transform: translateY(1px); }
 
-        /* 【修正】もどるボタンをさらに上（タイトルの横あたり）に配置 */
+        /* 【修正】もどるボタンを一番上、タイトルの左に配置 */
         #back-to-home-btn {
             background-color: #90a4ae; 
             font-size: 0.9rem; 
-            padding: 6px 15px; 
+            padding: 4px 12px; 
             position: absolute; 
-            left: 0;
-            top: -15px; /* さらに上に移動 */
-            z-index: 100;
+            left: 5px;
+            top: 5px; 
+            z-index: 1000;
         }
 
         #start-btn { 
             background-color: var(--primary-color); box-shadow: 0 4px 0 #2a75c7; 
-            font-size: 1.5rem; padding: 10px; margin: 10px; 
+            font-size: 1.5rem; padding: 10px; margin: 15px auto; 
             animation: pulse 2s infinite;
             width: 30%; min-width: 200px;
+            display: block;
         }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         
@@ -94,36 +95,45 @@
 
         .control-group { display: flex; align-items: center; gap: 8px; background: #fff; padding: 4px 10px; border-radius: 8px; border: 1px solid #f0f0f0; flex-wrap: wrap; justify-content: center; }
 
-        .mode-radio-group { display: flex; gap: 20px; align-items: center; justify-content: flex-start; }
+        /* モード選択のラジオボタン */
+        .mode-radio-group { display: flex; gap: 20px; align-items: center; justify-content: flex-start; margin-top: 5px; }
         .mode-radio-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; padding: 5px 10px; border-radius: 10px; transition: background 0.2s; }
         .mode-radio-label:hover { background: rgba(0,0,0,0.05); }
-        .mode-radio-label input { cursor: pointer; width: 18px; height: 18px; }
+        .mode-radio-label input { cursor: pointer; width: 18px; height: 18px; margin: 0; }
 
         .mini-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; pointer-events: none; }
         .mini-coin { background: radial-gradient(circle at 30% 30%, #ffffff, #e0e0e0 40%, #bfbfbf 90%); border: 1px solid #a0a0a0; color: #555; font-family: serif; }
         .mini-block { background-color: var(--block-yellow); border: 1px solid #9c7c00; border-radius: 2px; width: 20px; height: 20px; }
 
+        /* 説明エリア */
         .instruction-area { 
-            background-color: #fff9c4; border-radius: 12px; padding: 10px; margin: 5px auto; width: 98%; 
-            text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: start; overflow-y: auto;
+            background-color: #fff9c4; border-radius: 12px; padding: 15px; margin: 5px auto; width: 98%; 
+            flex: 1; display: flex; flex-direction: column; justify-content: start; overflow-y: auto;
         }
-        .instruction-section { margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.6); border-radius: 10px; text-align: left; }
-        .instruction-title { font-size: 1.2rem; color: #f57f17; font-weight: bold; margin-bottom: 5px; display: inline-block; border-bottom: 2px solid #f57f17; }
+        .instruction-section { 
+            margin-bottom: 15px; padding: 12px; background: rgba(255,255,255,0.7); border-radius: 10px; 
+            text-align: left; 
+        }
+        .instruction-title { 
+            font-size: 1.2rem; color: #f57f17; font-weight: bold; margin-bottom: 8px; 
+            display: inline-block; border-bottom: 2px solid #f57f17; 
+        }
         
-        .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; max-width: 800px; margin: 0 auto; }
-        .setup-item { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
-        .icon-box { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 1.2rem; }
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left; max-width: 900px; margin: 0 auto; }
+        .setup-item { display: flex; align-items: center; gap: 12px; font-size: 1rem; }
+        .icon-box { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 1.3rem; flex-shrink: 0; }
 
         .visual-guide-container { display: flex; justify-content: space-around; gap: 15px; margin-top: 10px; }
         .visual-guide-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; background: #fff; padding: 10px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
         .visual-guide-item svg { width: 100%; max-width: 180px; height: auto; }
-        .visual-guide-text { font-size: 0.9rem; font-weight: bold; color: #333; line-height: 1.4; text-align: center; }
+        .visual-guide-text { font-size: 0.95rem; font-weight: bold; color: #333; line-height: 1.4; text-align: center; }
         
         .level-badge, .title-badge, .counter-badge { padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.9rem; color: white; }
         .level-badge { background: var(--level-color); }
         .title-badge { background: var(--primary-color); }
         .counter-badge { background: var(--counter-color); }
 
+        /* メイン画面 */
         .workspace { display: none; flex-direction: row; gap: 15px; align-items: flex-start; margin-top: 5px; flex: 1; overflow: hidden; }
         
         .calc-panel { flex: 0 0 280px; background-color: #fafafa; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -278,9 +288,10 @@
 
     <div class="app-container">
         <header>
+            <button id="back-to-home-btn" class="btn" style="display:none;">◀ もどる</button>
             <h1>くり上がりのあるたし算をマスターしよう</h1>
+            
             <div id="header-controls" class="controls" style="display:none;">
-                 <button id="back-to-home-btn" class="btn">◀ もどる</button>
                  <div class="formula-row">
                     <span>しき：</span>
                     <input type="number" id="input1" class="num-input" readonly>
@@ -400,7 +411,8 @@
                     </div>
                 </div>
             </div>
-            <div style="text-align: center;"><button id="start-btn" class="btn">けいさん スタート</button></div>
+            
+            <button id="start-btn" class="btn">けいさん スタート</button>
         </div>
 
         <main class="workspace" id="main-workspace">
@@ -436,6 +448,7 @@
         <div id="user-id-footer" class="user-id-footer"></div>
     </div>
 
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
@@ -468,10 +481,15 @@
             modeRadios: document.getElementsByName('display-mode-radio')
         };
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // 安全なFirebase初期化
+        let app, auth, db;
+        try {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "dummy" };
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) { console.warn("Firebase Init Skip (Development Mode)"); }
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'math-hissan-app';
         const apiKey = "";
 
@@ -500,6 +518,7 @@
             "つぎの もんだいを おしてね"
         ];
 
+        // --- 全体管理用関数 ---
         function updateLevelUI() {
             const levelNum = Math.floor(state.questionCount / 5) + 1;
             if (els.levelDisplay) els.levelDisplay.textContent = `レベル: ${levelNum}`;
@@ -555,9 +574,9 @@
             }
         }
 
-        async function saveProgress() { if (user) await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current'), { questionCount: state.questionCount, updatedAt: Date.now() }); }
-        async function loadProgress() { if (user) { const snap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current')); if (snap.exists()) { state.questionCount = snap.data().questionCount || 0; updateLevelUI(); } } }
-        async function resetProgress() { if (user) { state.questionCount = 0; state.isAnsweredCorrectly = false; updateLevelUI(); await saveProgress(); generateNextProblem(); } }
+        async function saveProgress() { if (user && db) await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current'), { questionCount: state.questionCount, updatedAt: Date.now() }); }
+        async function loadProgress() { if (user && db) { const snap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current')); if (snap.exists()) { state.questionCount = snap.data().questionCount || 0; updateLevelUI(); } } }
+        async function resetProgress() { state.questionCount = 0; state.isAnsweredCorrectly = false; updateLevelUI(); await saveProgress(); generateNextProblem(); }
 
         function initVisualCounts() {
             const d1 = { 100: Math.floor(state.num1 / 100), 10: Math.floor((state.num1 % 100) / 10), 1: state.num1 % 10 };
@@ -735,21 +754,43 @@
             } else { speak(praises[9]); }
         }
 
-        onAuthStateChanged(auth, async u => { if (u) { user = u; await loadProgress(); } else { if (typeof __initial_auth_token !== 'undefined') await signInWithCustomToken(auth, __initial_auth_token); else await signInAnonymously(auth); } });
+        // --- 初期化 & イベント ---
+        if (auth) {
+            onAuthStateChanged(auth, async u => { 
+                if (u) { user = u; await loadProgress(); } 
+                else { 
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token); 
+                        else await signInAnonymously(auth);
+                    } catch(e) {}
+                } 
+            });
+        }
         
         els.startBtn.addEventListener('click', async () => { 
-            await unlockAudio(); els.workspace.style.display = 'flex'; els.instruction.style.display = 'none'; els.headerControls.style.display = 'flex'; 
-            els.startBtn.style.display = 'none'; els.nextBtn.style.display = 'inline-block'; generateNextProblem(); 
+            try {
+                await unlockAudio(); 
+                els.workspace.style.display = 'flex'; 
+                els.instruction.style.display = 'none'; 
+                els.headerControls.style.display = 'flex'; 
+                els.backToHomeBtn.style.display = 'inline-block'; // もどるボタン表示
+                els.startBtn.style.display = 'none'; 
+                els.nextBtn.style.display = 'inline-block'; 
+                generateNextProblem(); 
+            } catch (e) { console.error(e); }
         });
+
         els.nextBtn.addEventListener('click', () => { unlockAudio(); generateNextProblem(); });
         els.checkBtn.addEventListener('click', () => { unlockAudio(); checkAnswer(); });
         els.modalClose.addEventListener('click', () => { els.masterModal.style.display = 'none'; generateNextProblem(); });
         els.resetBtn.addEventListener('click', resetProgress);
+        
         els.backToHomeBtn.addEventListener('click', () => { 
             els.workspace.style.display = 'none'; 
             els.headerControls.style.display = 'none'; 
             els.instruction.style.display = 'flex'; 
-            els.startBtn.style.display = 'inline-block';
+            els.backToHomeBtn.style.display = 'none';
+            els.startBtn.style.display = 'block'; // スタートボタン再表示
         });
 
         Array.from(els.modeRadios).forEach(radio => {
