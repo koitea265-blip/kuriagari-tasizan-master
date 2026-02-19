@@ -407,6 +407,7 @@
                 <div class="instruction-title">3. つかいかた</div>
                 <div class="visual-guide-container">
                     <div class="visual-guide-item">
+                        <!-- 説明文を図の上に配置 -->
                         <span class="visual-guide-text">① おかねを 下の<br>わくに うごかそう！</span>
                         <svg viewBox="0 0 100 100">
                             <defs><radialGradient id="grad-coin-1" cx="30%" cy="30%"><stop offset="0%" stop-color="#fff"/><stop offset="40%" stop-color="#e0e0e0"/><stop offset="90%" stop-color="#bfbfbf"/></radialGradient></defs>
@@ -418,6 +419,7 @@
                         </svg>
                     </div>
                     <div class="visual-guide-item">
+                        <!-- 説明文を図の上に配置 -->
                         <span class="visual-guide-text">② 10こ あつまったら<br>ボタンを おそう！</span>
                         <svg viewBox="0 0 140 100">
                             <rect x="5" y="32" width="130" height="60" rx="5" fill="rgba(255,87,34,0.05)" stroke="#ff5722" stroke-width="2" stroke-dasharray="4" />
@@ -438,6 +440,7 @@
                         </svg>
                     </div>
                     <div class="visual-guide-item">
+                        <!-- 説明文を図の上に配置 -->
                         <span class="visual-guide-text">③ ひっ算の わくに<br>数字を かこう！</span>
                         <svg viewBox="0 0 120 100">
                             <rect x="15" y="20" width="90" height="70" fill="#fff" stroke="#555" stroke-width="2" />
@@ -549,6 +552,7 @@
             lastGuideTime: 0,
             titles: ["たしざん みならい", "たしざん しゅぎょうちゅう", "たしざん めいじん", "たしざん たつじん", "たしざん おう", "ひっさんの かみさま"],
             counts: {}, layoutMap: {}, dragging: null,
+            // 繰り上がり発生の記憶フラグ
             carry10Triggered: false,
             carry100Triggered: false
         };
@@ -667,7 +671,6 @@
                 if (count >= 10 && val < 100) {
                     const groupBox = document.createElement('div'); groupBox.className = 'ten-group-box';
                     
-                    // 【機能修正】全部下ろしていないか判定
                     const remainingInputsInColumn = state.counts['top-' + val] + state.counts['mid-' + val];
                     
                     groupBox.onclick = (e) => { 
@@ -687,7 +690,6 @@
                     btn.className = 'regroup-btn'; 
                     btn.textContent = 'くりあげる！';
                     
-                    // 【機能修正】全部下ろしていないときはボタンをロック
                     if (remainingInputsInColumn > 0) {
                         btn.style.backgroundColor = '#999';
                         btn.style.boxShadow = 'none';
@@ -763,13 +765,18 @@
             state.counts[sourceKey] -= 10; 
             state.counts[`carry-${val*10}`]++; 
             state.layoutMap[`carry-${val*10}`].push({val: val*10, active: true}); 
-            // くり上げボタンを押したのでフラグを確定させる
             if (val === 1) state.carry10Triggered = true;
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
         }
         
+        /**
+         * 【修正】答え自動モードの同期ロジック
+         * 1. 繰り上がりが発生（10個以上下ろされた）していても、ボタンを押す（Triggered）前は、総数を表示（例: 12）
+         * 2. ボタンが押されたら、繰り上がり枠に「1」を表示し、答えの欄は 1桁（mod 10）にする
+         * 3. ただし、十の位や百の位の「答え」は、実際にその位の「こたえ(bot)」エリアにブロックが下ろされた数のみを数字にする。
+         */
         function syncHissanWithVisuals() {
             if (!els.settingAnswer.checked) return; 
             
@@ -779,10 +786,7 @@
             const vc10 = state.counts['carry-10'];
             const vc100 = state.counts['carry-100'];
 
-            if (b1 >= 10 || vc10 > 0) state.carry10Triggered = true;
-            const logicalTens = b10 + (state.carry10Triggered ? 1 : 0);
-            if (logicalTens >= 10 || vc100 > 0) state.carry100Triggered = true;
-
+            // 初期状態判定（何も動かしていない、かつフラグも立っていない）
             if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0 && !state.carry10Triggered && !state.carry100Triggered) {
                 if (document.getElementById('ans-1')) document.getElementById('ans-1').value = "";
                 if (document.getElementById('ans-10')) document.getElementById('ans-10').value = "";
@@ -790,24 +794,34 @@
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
+            // くり上がり表示：フラグがあるときのみ「1」を入れる
             els.carry10.value = state.carry10Triggered ? "1" : "";
             els.carry100.value = state.carry100Triggered ? "1" : "";
 
+            // 各桁の数値表示
+            // 一の位
             if (document.getElementById('ans-1')) {
+                // ボタンが押されていない時は総数(b1)を表示、押されたら一桁(b1 % 10)を表示
                 document.getElementById('ans-1').value = state.carry10Triggered ? (b1 % 10) : b1;
             }
             
+            // 十の位
             if (document.getElementById('ans-10')) {
+                // 十の位のベースは 実際に「こたえ」エリアにあるブロックの数
                 const currentTensInAnswerZone = b10; 
+                // 百の位にくりあげるボタンが押されたら一桁、そうでなければそのまま表示
                 const val10 = state.carry100Triggered ? (currentTensInAnswerZone % 10) : currentTensInAnswerZone;
                 
-                if (currentTensInAnswerZone > 0 || b100 > 0 || vc100 > 0 || state.carry100Triggered) {
+                // 表示判定（0サプレス）：こたえエリアにブロックがある、または百の位に何かある場合
+                // ※ ここが重要。繰り上がりの「1」ができた直後（b10が0のとき）は空欄にする。
+                if (currentTensInAnswerZone > 0 || b100 > 0 || state.carry100Triggered) {
                     document.getElementById('ans-10').value = val10;
                 } else {
                     document.getElementById('ans-10').value = "";
                 }
             }
             
+            // 百の位
             if (document.getElementById('ans-100')) {
                 const currentHundredsInAnswerZone = b100;
                 document.getElementById('ans-100').value = currentHundredsInAnswerZone === 0 ? "" : currentHundredsInAnswerZone;
