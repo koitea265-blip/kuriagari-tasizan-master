@@ -284,10 +284,11 @@
         .coin-zone.carry-row { min-height: 60px; padding-top: 22px; border-bottom: none; overflow: visible; z-index: 100; }
         .coin-zone.carry-row::after { content: "くりあがり"; position: absolute; top: 2px; left: 5px; font-size: 0.65rem; color: #555; opacity: 0.7; }
         
-        /* 答えの枠の個別スクロールを解除 */
+        /* 答えの枠：ボタンが隠れないように手前(z-index)に出す */
         .coin-zone.result-row { 
             border-top: 4px solid #666; 
             position: relative;
+            z-index: 50; /* 【修正】境界横線より手前に表示させる */
         }
 
         .zone-label { position: absolute; bottom: 2px; left: 5px; font-size: 0.65rem; color: rgba(0,0,0,0.2); pointer-events: none; }
@@ -339,7 +340,25 @@
         .ten-group-box:hover { background-color: rgba(255, 87, 34, 0.15); }
         .ten-group-box:active { transform: scale(0.98); }
 
-        .regroup-btn { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); z-index: 30; background: #ff5722; color: white; border: none; border-radius: 20px; padding: 4px 10px; font-size: 0.8rem; cursor: pointer; animation: bounce 1s infinite; font-weight: bold; white-space: nowrap; }
+        /* 【修正】ボタンを少し上に持ち上げ、影をつけて手前にあることを強調 */
+        .regroup-btn { 
+            position: absolute; 
+            top: -32px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 100; 
+            background: #ff5722; 
+            color: white; 
+            border: none; 
+            border-radius: 20px; 
+            padding: 4px 10px; 
+            font-size: 0.8rem; 
+            cursor: pointer; 
+            animation: bounce 1s infinite; 
+            font-weight: bold; 
+            white-space: nowrap; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
 
         .token-container.column-layout { flex-direction: column !important; align-items: center !important; }
         .fraction-container { display: grid; grid-template-columns: repeat(5, auto); gap: 4px; margin-top: 8px; }
@@ -916,7 +935,7 @@
         function onDragStart(e, el, val, sourceKey) {
             if (el.classList.contains('ghost')) return; 
             
-            // 【修正】順番を厳密に守らせるためのドラッグ制限
+            // 順番を厳密に守らせるためのドラッグ制限
             if (val === 10 && sourceKey !== 'carry-100' && sourceKey !== 'bot-100') { 
                 if (state.counts['top-1'] > 0 || state.counts['mid-1'] > 0) { 
                     speak("まずは、いちの くらいから、うごかそうね！"); e.preventDefault(); return; 
@@ -1041,7 +1060,7 @@
             let n1, n2; const count = state.questionCount + 1;
             const getUnitWithCarry = () => { const u1 = Math.floor(Math.random() * 9) + 1; const minU2 = 10 - u1; const u2 = Math.floor(Math.random() * (9 - minU2 + 1)) + minU2; return { u1, u2 }; };
             
-            // 【修正】レベルごとの問題設定の厳格化
+            // レベルごとの問題設定の厳格化
             if (count <= 5) { // レベル1
                 const { u1, u2 } = getUnitWithCarry(); 
                 n1 = (Math.floor(Math.random() * 5) + 1) * 10 + u1; 
