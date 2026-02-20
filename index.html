@@ -343,6 +343,15 @@
             align-items: center;
             gap: 15px;
         }
+        
+        /* デバッグ・ID確認用のスタイルを復活 */
+        #user-id-footer {
+            font-family: monospace;
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -506,6 +515,8 @@
             
             <footer class="footer-credit">
                 <span>&copy;2026　くり上がりのあるたし算マスター　ＩＣＴ支援の杜</span>
+                <!-- ID確認用 -->
+                <span id="user-id-footer"></span>
             </footer>
         </div>
 
@@ -571,11 +582,12 @@
             headerControls: document.getElementById('header-controls'),
             backToHomeBtn: document.getElementById('back-to-home-btn'),
             modeRadios: document.getElementsByName('display-mode-radio'),
-            loadingOverlay: document.getElementById('loading-overlay') 
+            loadingOverlay: document.getElementById('loading-overlay'),
+            userIdFooter: document.getElementById('user-id-footer')
         };
 
-        // Firebaseシステムの初期化をシステムルール通りに実行
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // Firebase初期化
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'math-hissan-app';
         let firebaseConfig = null;
         let app, auth, db;
         
@@ -1008,7 +1020,7 @@
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); 
             
-            saveProgress(); 
+            saveProgress(); // 新問題の初期状態を保存
             
             renderVisuals(); 
             renderHissan(); 
@@ -1062,6 +1074,9 @@
                 onAuthStateChanged(auth, async u => { 
                     if (u) { 
                         user = u; 
+                        if(els.userIdFooter) {
+                            els.userIdFooter.textContent = 'ID: ' + user.uid; // デバッグ用ID表示
+                        }
                         await loadProgress(); 
                     } 
                     hideLoading(); // 全て完了してからローディング画面を消す
