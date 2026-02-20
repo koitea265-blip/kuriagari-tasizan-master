@@ -560,7 +560,7 @@
             loadingOverlay: document.getElementById('loading-overlay') 
         };
 
-        // Firebase初期化（安全な構文）
+        // Firebase初期化
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'math-hissan-app';
         let firebaseConfig = null;
         let app, auth, db;
@@ -621,7 +621,7 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
-        // --- 保存データのエラーを防ぐためのディープコピー ---
+        // --- エラーで弾かれないように完全に文字列化（JSON）して保存 ---
         function getCleanStateData() {
             return {
                 questionCount: state.questionCount,
@@ -631,24 +631,16 @@
                 num1: state.num1,
                 num2: state.num2,
                 ans: state.ans,
-                // DOM要素などが混入しないよう完全にプレーンなデータにして保存
-                counts: JSON.parse(JSON.stringify(state.counts)),
-                layoutMap: JSON.parse(JSON.stringify(state.layoutMap)),
+                // DOMへの参照等が混じらないよう、必ず文字列に変換して保存する
+                countsStr: JSON.stringify(state.counts),
+                layoutMapStr: JSON.stringify(state.layoutMap),
                 carry10Triggered: state.carry10Triggered,
                 carry100Triggered: state.carry100Triggered,
                 updatedAt: Date.now() 
             };
         }
 
-        // デバウンス処理（連続保存によるエラー防止）
-        let saveTimeout = null;
-        function scheduleSave() {
-            if (saveTimeout) clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                saveProgress();
-            }, 500);
-        }
-
+        // 直ちに保存を行う（デバウンスを廃止し、確実にクラウドへ送る）
         async function saveProgress() { 
             if (user && db) {
                 try {
@@ -691,14 +683,9 @@
                             state.num2 = data.num2;
                             state.ans = data.ans;
                             
-                            // 盤面データがある場合は復元、なければ初期化
-                            if (data.counts && Object.keys(data.counts).length > 0) {
-                                state.counts = data.counts;
-                                state.layoutMap = data.layoutMap;
-                            } else {
-                                initVisualCounts(); 
-                            }
-                            
+                            // 文字列化された盤面データを復元する
+                            if (data.countsStr) state.counts = JSON.parse(data.countsStr);
+                            if (data.layoutMapStr) state.layoutMap = JSON.parse(data.layoutMapStr);
                             if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
                             if (data.carry100Triggered !== undefined) state.carry100Triggered = data.carry100Triggered;
                             
@@ -715,6 +702,10 @@
                             els.msg.textContent = "";
                             
                             state.isAnsweredCorrectly = false;
+                            
+                            if (!data.countsStr || Object.keys(state.counts).length === 0) {
+                                initVisualCounts(); 
+                            }
                             
                             renderVisuals(); 
                             renderHissan();
@@ -907,7 +898,7 @@
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
                 renderVisuals(); 
                 syncHissanWithVisuals();
-                scheduleSave(); 
+                saveProgress(); 
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -920,7 +911,7 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
-            scheduleSave(); 
+            saveProgress(); 
         }
         
         function syncHissanWithVisuals() {
@@ -996,7 +987,7 @@
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); 
             
-            scheduleSave(); 
+            saveProgress(); 
             
             renderVisuals(); 
             renderHissan(); 
@@ -1009,7 +1000,7 @@
             if (u100 * 100 + u10 * 10 + u1 === state.ans) {
                 state.isAnsweredCorrectly = true;
                 state.questionCount++; 
-                scheduleSave(); 
+                saveProgress(); 
                 updateLevelUI(); 
                 
                 if (state.questionCount === 30) speak(praises[8]);
@@ -1076,7 +1067,7 @@
         
         els.backToHomeBtn.addEventListener('click', () => { 
             state.isPlaying = false;
-            scheduleSave();
+            saveProgress();
             els.workspace.style.display = 'none'; 
             els.headerControls.style.display = 'none'; 
             els.instruction.style.display = 'flex'; 
@@ -1094,7 +1085,7 @@
                     els.coinTable.classList.remove('mode-coin');
                     els.coinTable.classList.add('mode-block');
                 }
-                scheduleSave();
+                saveProgress();
                 initVisualCounts();
                 renderVisuals();
             });
@@ -1102,7 +1093,7 @@
 
         els.settingAnswer.addEventListener('change', e => {
             state.autoAnswer = e.target.checked;
-            scheduleSave();
+            saveProgress();
             syncHissanWithVisuals();
         });
 
