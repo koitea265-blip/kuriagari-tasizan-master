@@ -346,6 +346,17 @@
     </style>
 </head>
 <body oncontextmenu="return false;">
+    <!-- 【フェイルセーフ】通信エラー等でも絶対にローディングを消して画面を出す -->
+    <script>
+        setTimeout(function() {
+            var el = document.getElementById('loading-overlay');
+            if (el && el.style.display !== 'none') {
+                el.style.opacity = '0';
+                setTimeout(function(){ el.style.display = 'none'; }, 300);
+            }
+        }, 3000);
+    </script>
+    
     <!-- ロード中画面 -->
     <div id="loading-overlay">
         <div class="loading-icon">⏳</div>
@@ -564,11 +575,27 @@
         };
 
         // Firebaseシステムの初期化をシステムルール通りに実行
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "dummy" };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let firebaseConfig = null;
+        let app, auth, db;
+        
+        if (typeof __firebase_config !== 'undefined') {
+            try {
+                firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+            } catch (e) { 
+                console.warn("Firebase config parse skip"); 
+            }
+        }
+        
+        if (firebaseConfig) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (e) {
+                console.warn("Firebase Init Skip", e);
+            }
+        }
 
         const apiKey = "";
         let currentAudio = null;
@@ -1009,8 +1036,20 @@
             } else { speak(praises[9]); }
         }
 
-        // --- 強固な初期化・認証シーケンス ---
+        // --- 確実な初期化・認証シーケンス ---
         const initApp = async () => {
+            const hideLoading = () => {
+                if (els.loadingOverlay.style.display !== 'none') {
+                    els.loadingOverlay.style.opacity = '0';
+                    setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
+                }
+            };
+
+            if (!auth) {
+                hideLoading();
+                return;
+            }
+
             try {
                 // 1. ログイン処理を完全に待つ
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -1024,14 +1063,12 @@
                     if (u) { 
                         user = u; 
                         await loadProgress(); 
-                        // 3. データ復元が完了したらローディング画面を消す
-                        els.loadingOverlay.style.opacity = '0';
-                        setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
                     } 
+                    hideLoading(); // 全て完了してからローディング画面を消す
                 });
             } catch(e) { 
                 console.error("Auth/Load error:", e); 
-                els.loadingOverlay.style.display = 'none';
+                hideLoading();
             } 
         };
         
