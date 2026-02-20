@@ -45,7 +45,7 @@
             user-select: none;
         }
 
-        /* 【追加】ロード中画面のスタイル */
+        /* ロード中画面のスタイル */
         #loading-overlay {
             position: fixed;
             top: 0;
@@ -341,7 +341,7 @@
     </style>
 </head>
 <body oncontextmenu="return false;">
-    <!-- 【追加】ロード中画面 -->
+    <!-- ロード中画面 -->
     <div id="loading-overlay">
         <div class="loading-icon">⏳</div>
         <div class="loading-text">データをよみこみちゅう...</div>
@@ -526,10 +526,9 @@
         <div id="user-id-footer" class="user-id-footer"></div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getAuth, signInWithCustomToken, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const els = {
@@ -557,25 +556,26 @@
             headerControls: document.getElementById('header-controls'),
             backToHomeBtn: document.getElementById('back-to-home-btn'),
             modeRadios: document.getElementsByName('display-mode-radio'),
-            loadingOverlay: document.getElementById('loading-overlay') // ローディング画面
+            loadingOverlay: document.getElementById('loading-overlay') 
         };
 
-        // Firebase初期化
-        let app, auth, db;
+        // Firebase初期化（安全な構文）
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'math-hissan-app';
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : 'null';
+        let app, auth, db;
         
-        try {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "dummy" };
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-        } catch (e) { 
-            console.warn("Firebase Init Skip"); 
-            els.loadingOverlay.style.display = 'none'; // エラー時はすぐに消す
+        if (firebaseConfigStr !== 'null') {
+            try {
+                const firebaseConfig = JSON.parse(firebaseConfigStr);
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (e) { 
+                console.warn("Firebase Init Skip"); 
+            }
         }
 
         const apiKey = "";
-
         let currentAudio = null;
         let user = null;
         
@@ -613,7 +613,6 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
-        // --- 進行状況と設定のクラウド保存・読み込み ---
         async function saveProgress() { 
             if (user && db) {
                 try {
@@ -625,7 +624,6 @@
                         num1: state.num1,
                         num2: state.num2,
                         ans: state.ans,
-                        // 盤面状態を全て保存
                         counts: state.counts,
                         layoutMap: state.layoutMap,
                         carry10Triggered: state.carry10Triggered,
@@ -663,14 +661,12 @@
 
                         updateLevelUI(); 
 
-                        // プレイ画面にいた場合は問題と「盤面状態」を完全に復元する
                         if (data.isPlaying && data.num1 !== undefined) {
                             state.isPlaying = true;
                             state.num1 = data.num1;
                             state.num2 = data.num2;
                             state.ans = data.ans;
                             
-                            // 保存されていた盤面状態があれば復元
                             if (data.counts) state.counts = data.counts;
                             if (data.layoutMap) state.layoutMap = data.layoutMap;
                             if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
@@ -690,7 +686,6 @@
                             
                             state.isAnsweredCorrectly = false;
                             
-                            // 過去の盤面データがない場合のみ初期配置を作る
                             if (!data.counts) {
                                 initVisualCounts(); 
                             }
@@ -886,7 +881,7 @@
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
                 renderVisuals(); 
                 syncHissanWithVisuals();
-                saveProgress(); // 盤面を保存
+                saveProgress(); 
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -899,7 +894,7 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
-            saveProgress(); // 盤面を保存
+            saveProgress(); 
         }
         
         function syncHissanWithVisuals() {
@@ -975,7 +970,7 @@
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); 
             
-            saveProgress(); // 新問題の初期状態を保存
+            saveProgress(); 
             
             renderVisuals(); 
             renderHissan(); 
@@ -1004,32 +999,32 @@
         }
 
         // --- 強固な初期化シーケンス ---
-        if (auth) {
-            const initAuth = async () => {
+        const initApp = async () => {
+            if (auth) {
                 try {
+                    // 1. 認証を完了させる
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
                         await signInAnonymously(auth);
                     }
-                } catch(e) { console.error("Auth error:", e); }
-            };
-            
-            // 認証処理を即座に開始
-            initAuth();
-            
-            // 認証状態の監視。ここでロード処理を行い、完了後にオーバーレイを消す
-            onAuthStateChanged(auth, async u => { 
-                if (u) { 
-                    user = u; 
+                    user = auth.currentUser;
+                    
+                    // 2. データのロードを完全に待つ
                     await loadProgress(); 
-                } 
-                // ロード完了後、ローディング画面を隠す
+                } catch(e) { 
+                    console.error("Auth/Load error:", e); 
+                } finally {
+                    // 3. 全て完了してからローディング画面を消す
+                    els.loadingOverlay.style.display = 'none';
+                }
+            } else {
                 els.loadingOverlay.style.display = 'none';
-            });
-        } else {
-            els.loadingOverlay.style.display = 'none';
-        }
+            }
+        };
+        
+        // アプリ起動時に実行
+        initApp();
         
         els.startBtn.addEventListener('click', async () => { 
             try {
