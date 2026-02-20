@@ -45,6 +45,31 @@
             user-select: none;
         }
 
+        /* 【追加】ロード中画面のスタイル */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            z-index: 20000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-icon {
+            font-size: 4rem;
+            animation: bounce 1.5s infinite;
+        }
+        .loading-text {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
         .app-container { 
             width: 100%; 
             max-width: 1200px; 
@@ -316,6 +341,12 @@
     </style>
 </head>
 <body oncontextmenu="return false;">
+    <!-- 【追加】ロード中画面 -->
+    <div id="loading-overlay">
+        <div class="loading-icon">⏳</div>
+        <div class="loading-text">データをよみこみちゅう...</div>
+    </div>
+
     <div id="feedback-overlay"><div id="big-text" class="big-correct-text">せいかい！</div></div>
 
     <div id="master-modal" class="modal-overlay" style="display: none;">
@@ -495,6 +526,7 @@
         <div id="user-id-footer" class="user-id-footer"></div>
     </div>
 
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
@@ -524,7 +556,8 @@
             resetBtn: document.getElementById('reset-progress-btn'),
             headerControls: document.getElementById('header-controls'),
             backToHomeBtn: document.getElementById('back-to-home-btn'),
-            modeRadios: document.getElementsByName('display-mode-radio')
+            modeRadios: document.getElementsByName('display-mode-radio'),
+            loadingOverlay: document.getElementById('loading-overlay') // ローディング画面
         };
 
         // Firebase初期化
@@ -536,7 +569,10 @@
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-        } catch (e) { console.warn("Firebase Init Skip"); }
+        } catch (e) { 
+            console.warn("Firebase Init Skip"); 
+            els.loadingOverlay.style.display = 'none'; // エラー時はすぐに消す
+        }
 
         const apiKey = "";
 
@@ -589,7 +625,7 @@
                         num1: state.num1,
                         num2: state.num2,
                         ans: state.ans,
-                        // 【修正】盤面状態を全て保存
+                        // 盤面状態を全て保存
                         counts: state.counts,
                         layoutMap: state.layoutMap,
                         carry10Triggered: state.carry10Triggered,
@@ -634,7 +670,7 @@
                             state.num2 = data.num2;
                             state.ans = data.ans;
                             
-                            // 【修正】保存されていた盤面状態があれば復元
+                            // 保存されていた盤面状態があれば復元
                             if (data.counts) state.counts = data.counts;
                             if (data.layoutMap) state.layoutMap = data.layoutMap;
                             if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
@@ -850,8 +886,7 @@
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
                 renderVisuals(); 
                 syncHissanWithVisuals();
-                // 【修正】ブロックを移動させるたびに盤面を保存する
-                saveProgress(); 
+                saveProgress(); // 盤面を保存
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -864,8 +899,7 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
-            // 【修正】くりあげ実行時にも盤面を保存する
-            saveProgress(); 
+            saveProgress(); // 盤面を保存
         }
         
         function syncHissanWithVisuals() {
@@ -941,8 +975,7 @@
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); 
             
-            // 【修正】新問題を作成したらその初期状態を保存する
-            saveProgress(); 
+            saveProgress(); // 新問題の初期状態を保存
             
             renderVisuals(); 
             renderHissan(); 
@@ -970,8 +1003,9 @@
             } else { speak(praises[9]); }
         }
 
-        const initAuth = async () => {
-            if (auth) {
+        // --- 強固な初期化シーケンス ---
+        if (auth) {
+            const initAuth = async () => {
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
@@ -979,18 +1013,22 @@
                         await signInAnonymously(auth);
                     }
                 } catch(e) { console.error("Auth error:", e); }
-            }
-        };
-        
-        if (auth) {
-            initAuth().then(() => {
-                onAuthStateChanged(auth, async u => { 
-                    if (u) { 
-                        user = u; 
-                        await loadProgress(); 
-                    } 
-                });
+            };
+            
+            // 認証処理を即座に開始
+            initAuth();
+            
+            // 認証状態の監視。ここでロード処理を行い、完了後にオーバーレイを消す
+            onAuthStateChanged(auth, async u => { 
+                if (u) { 
+                    user = u; 
+                    await loadProgress(); 
+                } 
+                // ロード完了後、ローディング画面を隠す
+                els.loadingOverlay.style.display = 'none';
             });
+        } else {
+            els.loadingOverlay.style.display = 'none';
         }
         
         els.startBtn.addEventListener('click', async () => { 
