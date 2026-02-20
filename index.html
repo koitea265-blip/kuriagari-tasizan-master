@@ -191,10 +191,10 @@
         .title-badge { background: var(--primary-color); }
         .counter-badge { background: var(--counter-color); }
 
-        /* ワークスペース */
-        .workspace { display: none; flex-direction: row; gap: 15px; align-items: flex-start; margin-top: 5px; flex: 1; overflow: hidden; }
+        /* ワークスペース：スクロールの修正 */
+        .workspace { display: none; flex-direction: row; gap: 15px; align-items: stretch; margin-top: 5px; flex: 1; overflow: hidden; min-height: 0; }
         
-        .calc-panel { flex: 0 0 320px; background-color: #fafafa; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .calc-panel { flex: 0 0 320px; background-color: #fafafa; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
         .calc-wrapper { position: relative; margin-top: 40px; }
         
         .hissan-grid { 
@@ -236,16 +236,31 @@
             font-family: var(--main-font); 
         }
 
-        .visual-panel { flex: 1; background-color: #fff; border: 1px solid #eee; border-radius: 15px; padding: 5px; overflow-y: auto; }
+        /* 視覚パネル：表全体をflexに合わせ、溢れた分は中のセルでスクロール */
+        .visual-panel { 
+            flex: 1; 
+            background-color: #fff; 
+            border: 1px solid #eee; 
+            border-radius: 15px; 
+            padding: 5px; 
+            overflow: hidden; /* 親パネル自体のスクロールは隠す */
+            min-height: 0; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column; 
+        }
         
         .coin-table { 
             display: grid; 
-            grid-template-rows: auto auto auto auto 1fr; 
+            /* 最後の行(答えの枠)が残りの高さをすべて使い切るように設定 */
+            grid-template-rows: auto auto auto auto minmax(120px, 1fr); 
             gap: 1px; 
             background-color: #666; 
             border: 2px solid #666; 
             width: 100%; 
             max-width: 100%;
+            flex: 1; 
+            min-height: 0; 
         }
         
         .coin-table.mode-coin { grid-template-columns: 1fr 1fr 1fr; }
@@ -263,7 +278,21 @@
         
         .coin-zone.carry-row { min-height: 60px; padding-top: 22px; border-bottom: none; overflow: visible; z-index: 100; }
         .coin-zone.carry-row::after { content: "くりあがり"; position: absolute; top: 2px; left: 5px; font-size: 0.65rem; color: #555; opacity: 0.7; }
-        .coin-zone.result-row { min-height: 140px; border-top: 4px solid #666; }
+        
+        /* 答えの枠：ブロックが溢れた場合に縦スクロールバーを出す */
+        .coin-zone.result-row { 
+            border-top: 4px solid #666; 
+            overflow-y: auto; 
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* スクロールバーのデザイン */
+        .coin-zone.result-row::-webkit-scrollbar { width: 6px; }
+        .coin-zone.result-row::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 3px; }
+        .coin-zone.result-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
+        .coin-zone.result-row::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
+
         .zone-label { position: absolute; bottom: 2px; left: 5px; font-size: 0.65rem; color: rgba(0,0,0,0.2); pointer-events: none; }
 
         .token { display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: grab; touch-action: none; user-select: none; transition: transform 0.1s; }
@@ -300,7 +329,6 @@
         .container-coin-ten { display: grid !important; grid-template-columns: repeat(5, auto) !important; gap: 4px !important; }
         .container-ten { flex-direction: column !important; gap: 2px !important; }
         
-        /* 【修正】はみ出しバグを防ぐため、wrapを許可する */
         .coin-table.mode-block .col-one .container-grid { display: flex !important; flex-wrap: wrap !important; width: 100% !important; gap: 4px !important; align-items: center; justify-content: flex-start; }
 
         .ten-group-box { 
@@ -319,7 +347,6 @@
         .token-container.column-layout { flex-direction: column !important; align-items: center !important; }
         .fraction-container { display: grid; grid-template-columns: repeat(5, auto); gap: 4px; margin-top: 8px; }
         
-        /* 【修正】はみ出しバグを防ぐため、wrapを許可する */
         .coin-table.mode-block .col-one .fraction-container { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 4px !important; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -357,10 +384,10 @@
             font-size: 0.7rem;
         }
 
-        /* 【追加】スマホでのブロックのはみ出しを防ぐレスポンシブ設定 */
+        /* スマホでのブロックのはみ出しを防ぐレスポンシブ設定 */
         @media (max-width: 600px) {
             :root {
-                --block-unit: 14px; /* ブロックを少し小さくして画面内に収める */
+                --block-unit: 14px; 
             }
             .token.coin.coin-1 { width: 30px; height: 30px; font-size: 1rem; }
             .token.coin.coin-10 { width: 34px; height: 34px; font-size: 1.1rem; }
@@ -891,8 +918,25 @@
 
         function onDragStart(e, el, val, sourceKey) {
             if (el.classList.contains('ghost')) return; 
-            if (val === 10 && (state.counts['top-1'] > 0 || state.counts['mid-1'] > 0)) { speak("まずは、いちの くらいから、うごかそうね！"); e.preventDefault(); return; }
-            if (val === 100 && (state.counts['top-1'] > 0 || state.counts['mid-1'] > 0 || state.counts['top-10'] > 0 || state.counts['mid-10'] > 0)) { speak("まずは、ちいさい くらいから、じゅんばんに うごかそうね！"); e.preventDefault(); return; }
+            
+            // 【修正】順番を厳密に守らせるためのドラッグ制限
+            if (val === 10 && sourceKey !== 'carry-100' && sourceKey !== 'bot-100') { 
+                if (state.counts['top-1'] > 0 || state.counts['mid-1'] > 0) { 
+                    speak("まずは、いちの くらいから、うごかそうね！"); e.preventDefault(); return; 
+                }
+                if (state.counts['bot-1'] >= 10) {
+                    speak("いちの くらいを くりあげてから、じゅうの くらいを うごかそうね！"); e.preventDefault(); return;
+                }
+            }
+            if (val === 100) { 
+                if (state.counts['top-1'] > 0 || state.counts['mid-1'] > 0 || state.counts['top-10'] > 0 || state.counts['mid-10'] > 0) { 
+                    speak("まずは、ちいさい くらいから、じゅんばんに うごかそうね！"); e.preventDefault(); return; 
+                }
+                if (state.counts['bot-1'] >= 10 || state.counts['bot-10'] >= 10) {
+                    speak("くりあげを おわらせてから、ひゃくの くらいを うごかそうね！"); e.preventDefault(); return;
+                }
+            }
+            
             e.preventDefault(); unlockAudio();
             const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY;
             const rect = el.getBoundingClientRect(); const proxy = el.cloneNode(true);
@@ -909,7 +953,7 @@
             const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
             proxy.remove(); const target = document.elementFromPoint(cx, cy)?.closest('.coin-zone');
             
-            // 【修正】ドロップ先が正しい位（1の位、10の位など）であるか厳密にチェックする
+            // ドロップ先が正しい位（1の位、10の位など）であるか厳密にチェックする
             const sourceBaseVal = parseInt(sourceKey.split('-')[1]);
             const targetBaseVal = target ? parseInt(target.dataset.val) : null;
             const isMatch = (targetBaseVal === sourceBaseVal) && ((val === sourceBaseVal) || (sourceBaseVal === 1 && (val === 1 || val === 5)));
@@ -999,10 +1043,34 @@
             state.carry100Triggered = false;
             let n1, n2; const count = state.questionCount + 1;
             const getUnitWithCarry = () => { const u1 = Math.floor(Math.random() * 9) + 1; const minU2 = 10 - u1; const u2 = Math.floor(Math.random() * (9 - minU2 + 1)) + minU2; return { u1, u2 }; };
-            if (count <= 5) { const { u1, u2 } = getUnitWithCarry(); n1 = (Math.floor(Math.random() * 5) + 1) * 10 + u1; n2 = u2; } 
-            else if (count <= 10) { const { u1, u2 } = getUnitWithCarry(); n1 = (Math.floor(Math.random() * 9) + 1) * 10 + u1; n2 = u2; } 
-            else if (count <= 20) { const { u1, u2 } = getUnitWithCarry(); const t1 = Math.floor(Math.random() * 7) + 1; const maxT2 = 8 - t1; const t2 = Math.floor(Math.random() * maxT2) + 1; n1 = t1 * 10 + u1; n2 = t2 * 10 + u2; } 
-            else { const { u1, u2 } = getUnitWithCarry(); const t1 = Math.floor(Math.random() * 9) + 1; const minT2 = 9 - t1; const t2 = Math.floor(Math.random() * (9 - minT2 + 1)) + minT2; n1 = t1 * 10 + u1; n2 = t2 * 10 + u2; }
+            
+            // 【修正】レベルごとの問題設定の厳格化
+            if (count <= 5) { // レベル1
+                const { u1, u2 } = getUnitWithCarry(); 
+                n1 = (Math.floor(Math.random() * 5) + 1) * 10 + u1; 
+                n2 = u2; 
+            } 
+            else if (count <= 10) { // レベル2 (絶対に100には行かないように最大80までに制限)
+                const { u1, u2 } = getUnitWithCarry(); 
+                n1 = (Math.floor(Math.random() * 8) + 1) * 10 + u1; 
+                n2 = u2; 
+            } 
+            else if (count <= 20) { // レベル3, 4
+                const { u1, u2 } = getUnitWithCarry(); 
+                const t1 = Math.floor(Math.random() * 7) + 1; 
+                const maxT2 = 8 - t1; 
+                const t2 = Math.floor(Math.random() * maxT2) + 1; 
+                n1 = t1 * 10 + u1; 
+                n2 = t2 * 10 + u2; 
+            } 
+            else { // レベル5, 6
+                const { u1, u2 } = getUnitWithCarry(); 
+                const t1 = Math.floor(Math.random() * 9) + 1; 
+                const minT2 = 9 - t1; 
+                const t2 = Math.floor(Math.random() * (9 - minT2 + 1)) + minT2; 
+                n1 = t1 * 10 + u1; 
+                n2 = t2 * 10 + u2; 
+            }
             state.num1 = n1; state.num2 = n2; state.ans = n1 + n2; 
             
             els.input1.value = n1; els.input2.value = n2; 
