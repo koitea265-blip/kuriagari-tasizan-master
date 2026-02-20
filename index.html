@@ -58,6 +58,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            transition: opacity 0.3s ease;
         }
         .loading-icon {
             font-size: 4rem;
@@ -561,17 +562,24 @@
 
         // Firebase初期化（安全な構文）
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'math-hissan-app';
-        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : 'null';
+        let firebaseConfig = null;
         let app, auth, db;
         
-        if (firebaseConfigStr !== 'null') {
+        if (typeof __firebase_config !== 'undefined') {
             try {
-                const firebaseConfig = JSON.parse(firebaseConfigStr);
+                firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+            } catch (e) { 
+                console.warn("Firebase config parse skip"); 
+            }
+        }
+        
+        if (firebaseConfig) {
+            try {
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-            } catch (e) { 
-                console.warn("Firebase Init Skip"); 
+            } catch (e) {
+                console.warn("Firebase Init Skip", e);
             }
         }
 
@@ -613,23 +621,30 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
+        // --- 保存データのエラーを防ぐためのディープコピー関数 ---
+        function getCleanStateData() {
+            return {
+                questionCount: state.questionCount,
+                mode: state.mode,
+                autoAnswer: state.autoAnswer,
+                isPlaying: state.isPlaying,
+                num1: state.num1,
+                num2: state.num2,
+                ans: state.ans,
+                // DOM要素などが混入しないよう完全にプレーンなデータにして保存
+                counts: JSON.parse(JSON.stringify(state.counts)),
+                layoutMap: JSON.parse(JSON.stringify(state.layoutMap)),
+                carry10Triggered: state.carry10Triggered,
+                carry100Triggered: state.carry100Triggered,
+                updatedAt: Date.now() 
+            };
+        }
+
         async function saveProgress() { 
             if (user && db) {
                 try {
-                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current'), { 
-                        questionCount: state.questionCount,
-                        mode: state.mode,
-                        autoAnswer: state.autoAnswer,
-                        isPlaying: state.isPlaying,
-                        num1: state.num1,
-                        num2: state.num2,
-                        ans: state.ans,
-                        counts: state.counts,
-                        layoutMap: state.layoutMap,
-                        carry10Triggered: state.carry10Triggered,
-                        carry100Triggered: state.carry100Triggered,
-                        updatedAt: Date.now() 
-                    });
+                    const cleanData = getCleanStateData();
+                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current'), cleanData);
                 } catch(e) { console.error("Save error:", e); }
             }
         }
@@ -998,32 +1013,35 @@
             } else { speak(praises[9]); }
         }
 
-        // --- 強固な初期化シーケンス ---
+        // --- 強固な初期化・認証シーケンス ---
         const initApp = async () => {
             if (auth) {
                 try {
-                    // 1. 認証を完了させる
+                    // 1. 完全にログインが終わるまで待つ
+                    let userCredential;
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
+                        userCredential = await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                        await signInAnonymously(auth);
+                        userCredential = await signInAnonymously(auth);
                     }
-                    user = auth.currentUser;
+                    user = userCredential.user;
                     
-                    // 2. データのロードを完全に待つ
+                    // 2. 完全にデータのロードが終わるまで待つ
                     await loadProgress(); 
+                    
                 } catch(e) { 
                     console.error("Auth/Load error:", e); 
                 } finally {
                     // 3. 全て完了してからローディング画面を消す
-                    els.loadingOverlay.style.display = 'none';
+                    els.loadingOverlay.style.opacity = '0';
+                    setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
                 }
             } else {
                 els.loadingOverlay.style.display = 'none';
             }
         };
         
-        // アプリ起動時に実行
+        // アプリ起動時に確実なフローで実行
         initApp();
         
         els.startBtn.addEventListener('click', async () => { 
