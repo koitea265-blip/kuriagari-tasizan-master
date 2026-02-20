@@ -543,7 +543,7 @@
         let currentAudio = null;
         let user = null;
         
-        // 状態管理（isPlayingを追加して画面状態を保存）
+        // 状態管理
         const state = {
             num1: 0, num2: 0, ans: 0, mode: 'coin', autoAnswer: false, questionCount: 0,
             isAnsweredCorrectly: false, audioContextStarted: false, audioCache: {},
@@ -589,6 +589,11 @@
                         num1: state.num1,
                         num2: state.num2,
                         ans: state.ans,
+                        // 【修正】盤面状態を全て保存
+                        counts: state.counts,
+                        layoutMap: state.layoutMap,
+                        carry10Triggered: state.carry10Triggered,
+                        carry100Triggered: state.carry100Triggered,
                         updatedAt: Date.now() 
                     });
                 } catch(e) { console.error("Save error:", e); }
@@ -622,12 +627,18 @@
 
                         updateLevelUI(); 
 
-                        // プレイ画面にいた場合は問題と画面を復元する
+                        // プレイ画面にいた場合は問題と「盤面状態」を完全に復元する
                         if (data.isPlaying && data.num1 !== undefined) {
                             state.isPlaying = true;
                             state.num1 = data.num1;
                             state.num2 = data.num2;
                             state.ans = data.ans;
+                            
+                            // 【修正】保存されていた盤面状態があれば復元
+                            if (data.counts) state.counts = data.counts;
+                            if (data.layoutMap) state.layoutMap = data.layoutMap;
+                            if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
+                            if (data.carry100Triggered !== undefined) state.carry100Triggered = data.carry100Triggered;
                             
                             els.instruction.style.display = 'none'; 
                             els.workspace.style.display = 'flex'; 
@@ -642,10 +653,12 @@
                             els.msg.textContent = "";
                             
                             state.isAnsweredCorrectly = false;
-                            state.carry10Triggered = false;
-                            state.carry100Triggered = false;
                             
-                            initVisualCounts(); 
+                            // 過去の盤面データがない場合のみ初期配置を作る
+                            if (!data.counts) {
+                                initVisualCounts(); 
+                            }
+                            
                             renderVisuals(); 
                             renderHissan();
                         }
@@ -825,6 +838,7 @@
             state.dragging = { el, proxy, val, sourceKey, index: el.dataset.index, offsetX: cx - rect.left, offsetY: cy - rect.top };
         }
         function onDragMove(e) { if (!state.dragging) return; e.preventDefault(); const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY; state.dragging.proxy.style.left = (cx - state.dragging.offsetX) + 'px'; state.dragging.proxy.style.top = (cy - state.dragging.offsetY) + 'px'; }
+        
         function onDragEnd(e) {
             if (!state.dragging) return; const { el, proxy, val, sourceKey, index } = state.dragging;
             const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
@@ -833,7 +847,11 @@
             const isMatch = (val === sourceBaseVal) || (sourceBaseVal === 1 && (val === 1 || val === 5));
             if (target && target.dataset.row === 'bot' && isMatch) {
                 if (state.layoutMap[sourceKey] && index !== undefined) state.layoutMap[sourceKey][index].active = false;
-                const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; renderVisuals(); syncHissanWithVisuals();
+                const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
+                renderVisuals(); 
+                syncHissanWithVisuals();
+                // 【修正】ブロックを移動させるたびに盤面を保存する
+                saveProgress(); 
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -846,6 +864,8 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
+            // 【修正】くりあげ実行時にも盤面を保存する
+            saveProgress(); 
         }
         
         function syncHissanWithVisuals() {
@@ -918,10 +938,14 @@
             else { const { u1, u2 } = getUnitWithCarry(); const t1 = Math.floor(Math.random() * 9) + 1; const minT2 = 9 - t1; const t2 = Math.floor(Math.random() * (9 - minT2 + 1)) + minT2; n1 = t1 * 10 + u1; n2 = t2 * 10 + u2; }
             state.num1 = n1; state.num2 = n2; state.ans = n1 + n2; 
             
-            saveProgress(); // 問題が変わったので保存
-            
             els.input1.value = n1; els.input2.value = n2; 
-            initVisualCounts(); renderVisuals(); renderHissan(); 
+            initVisualCounts(); 
+            
+            // 【修正】新問題を作成したらその初期状態を保存する
+            saveProgress(); 
+            
+            renderVisuals(); 
+            renderHissan(); 
             els.headerAns.value = "?"; els.msg.textContent = "";
         }
         
