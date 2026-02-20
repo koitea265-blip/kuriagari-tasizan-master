@@ -191,7 +191,7 @@
         .title-badge { background: var(--primary-color); }
         .counter-badge { background: var(--counter-color); }
 
-        /* ワークスペース：スクロールの修正 */
+        /* ワークスペース */
         .workspace { display: none; flex-direction: row; gap: 15px; align-items: stretch; margin-top: 5px; flex: 1; overflow: hidden; min-height: 0; }
         
         .calc-panel { flex: 0 0 320px; background-color: #fafafa; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
@@ -236,31 +236,36 @@
             font-family: var(--main-font); 
         }
 
-        /* 視覚パネル：表全体をflexに合わせ、溢れた分は中のセルでスクロール */
+        /* 視覚パネル：表全体をスクロール可能にする修正 */
         .visual-panel { 
             flex: 1; 
             background-color: #fff; 
             border: 1px solid #eee; 
             border-radius: 15px; 
             padding: 5px; 
-            overflow: hidden; /* 親パネル自体のスクロールは隠す */
+            overflow-y: auto; /* 親パネル自体の縦スクロールを許可 */
+            overflow-x: hidden;
             min-height: 0; 
             box-sizing: border-box; 
-            display: flex; 
-            flex-direction: column; 
+            display: block; /* 中身に合わせて自然に伸びるように変更 */
+            -webkit-overflow-scrolling: touch; /* スマホ・タブレットでのスムーズスクロール */
         }
+
+        /* パネル全体へのスクロールバーのデザイン */
+        .visual-panel::-webkit-scrollbar { width: 8px; }
+        .visual-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
+        .visual-panel::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        .visual-panel::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
         
         .coin-table { 
             display: grid; 
-            /* 最後の行(答えの枠)が残りの高さをすべて使い切るように設定 */
-            grid-template-rows: auto auto auto auto minmax(120px, 1fr); 
+            /* 最後の行(答えの枠)が内容に合わせて伸びるように設定 */
+            grid-template-rows: auto auto auto auto minmax(140px, auto); 
             gap: 1px; 
             background-color: #666; 
             border: 2px solid #666; 
             width: 100%; 
             max-width: 100%;
-            flex: 1; 
-            min-height: 0; 
         }
         
         .coin-table.mode-coin { grid-template-columns: 1fr 1fr 1fr; }
@@ -279,19 +284,11 @@
         .coin-zone.carry-row { min-height: 60px; padding-top: 22px; border-bottom: none; overflow: visible; z-index: 100; }
         .coin-zone.carry-row::after { content: "くりあがり"; position: absolute; top: 2px; left: 5px; font-size: 0.65rem; color: #555; opacity: 0.7; }
         
-        /* 答えの枠：ブロックが溢れた場合に縦スクロールバーを出す */
+        /* 答えの枠の個別スクロールを解除 */
         .coin-zone.result-row { 
             border-top: 4px solid #666; 
-            overflow-y: auto; 
-            overflow-x: hidden;
             position: relative;
         }
-
-        /* スクロールバーのデザイン */
-        .coin-zone.result-row::-webkit-scrollbar { width: 6px; }
-        .coin-zone.result-row::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 3px; }
-        .coin-zone.result-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
-        .coin-zone.result-row::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.4); }
 
         .zone-label { position: absolute; bottom: 2px; left: 5px; font-size: 0.65rem; color: rgba(0,0,0,0.2); pointer-events: none; }
 
