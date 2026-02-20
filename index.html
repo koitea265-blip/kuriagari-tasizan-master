@@ -529,7 +529,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
-        import { getAuth, signInWithCustomToken, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
         import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
         const els = {
@@ -621,7 +621,7 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
-        // --- 保存データのエラーを防ぐためのディープコピー関数 ---
+        // --- 保存データのエラーを防ぐためのディープコピー ---
         function getCleanStateData() {
             return {
                 questionCount: state.questionCount,
@@ -638,6 +638,15 @@
                 carry100Triggered: state.carry100Triggered,
                 updatedAt: Date.now() 
             };
+        }
+
+        // デバウンス処理（連続保存によるエラー防止）
+        let saveTimeout = null;
+        function scheduleSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveProgress();
+            }, 500);
         }
 
         async function saveProgress() { 
@@ -682,8 +691,14 @@
                             state.num2 = data.num2;
                             state.ans = data.ans;
                             
-                            if (data.counts) state.counts = data.counts;
-                            if (data.layoutMap) state.layoutMap = data.layoutMap;
+                            // 盤面データがある場合は復元、なければ初期化
+                            if (data.counts && Object.keys(data.counts).length > 0) {
+                                state.counts = data.counts;
+                                state.layoutMap = data.layoutMap;
+                            } else {
+                                initVisualCounts(); 
+                            }
+                            
                             if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
                             if (data.carry100Triggered !== undefined) state.carry100Triggered = data.carry100Triggered;
                             
@@ -700,10 +715,6 @@
                             els.msg.textContent = "";
                             
                             state.isAnsweredCorrectly = false;
-                            
-                            if (!data.counts) {
-                                initVisualCounts(); 
-                            }
                             
                             renderVisuals(); 
                             renderHissan();
@@ -896,7 +907,7 @@
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
                 renderVisuals(); 
                 syncHissanWithVisuals();
-                saveProgress(); 
+                scheduleSave(); 
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -909,7 +920,7 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
-            saveProgress(); 
+            scheduleSave(); 
         }
         
         function syncHissanWithVisuals() {
@@ -985,7 +996,7 @@
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); 
             
-            saveProgress(); 
+            scheduleSave(); 
             
             renderVisuals(); 
             renderHissan(); 
@@ -998,7 +1009,7 @@
             if (u100 * 100 + u10 * 10 + u1 === state.ans) {
                 state.isAnsweredCorrectly = true;
                 state.questionCount++; 
-                saveProgress(); 
+                scheduleSave(); 
                 updateLevelUI(); 
                 
                 if (state.questionCount === 30) speak(praises[8]);
@@ -1017,31 +1028,31 @@
         const initApp = async () => {
             if (auth) {
                 try {
-                    // 1. 完全にログインが終わるまで待つ
-                    let userCredential;
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        userCredential = await signInWithCustomToken(auth, __initial_auth_token);
+                        await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                        userCredential = await signInAnonymously(auth);
+                        await signInAnonymously(auth);
                     }
-                    user = userCredential.user;
                     
-                    // 2. 完全にデータのロードが終わるまで待つ
-                    await loadProgress(); 
-                    
+                    // onAuthStateChanged でログイン確定を確実に待つ
+                    onAuthStateChanged(auth, async u => { 
+                        if (u) { 
+                            user = u; 
+                            await loadProgress(); 
+                            // 全て完了してからローディング画面を消す
+                            els.loadingOverlay.style.opacity = '0';
+                            setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
+                        } 
+                    });
                 } catch(e) { 
                     console.error("Auth/Load error:", e); 
-                } finally {
-                    // 3. 全て完了してからローディング画面を消す
-                    els.loadingOverlay.style.opacity = '0';
-                    setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
-                }
+                    els.loadingOverlay.style.display = 'none';
+                } 
             } else {
                 els.loadingOverlay.style.display = 'none';
             }
         };
         
-        // アプリ起動時に確実なフローで実行
         initApp();
         
         els.startBtn.addEventListener('click', async () => { 
@@ -1065,7 +1076,7 @@
         
         els.backToHomeBtn.addEventListener('click', () => { 
             state.isPlaying = false;
-            saveProgress();
+            scheduleSave();
             els.workspace.style.display = 'none'; 
             els.headerControls.style.display = 'none'; 
             els.instruction.style.display = 'flex'; 
@@ -1083,7 +1094,7 @@
                     els.coinTable.classList.remove('mode-coin');
                     els.coinTable.classList.add('mode-block');
                 }
-                saveProgress();
+                scheduleSave();
                 initVisualCounts();
                 renderVisuals();
             });
@@ -1091,7 +1102,7 @@
 
         els.settingAnswer.addEventListener('change', e => {
             state.autoAnswer = e.target.checked;
-            saveProgress();
+            scheduleSave();
             syncHissanWithVisuals();
         });
 
