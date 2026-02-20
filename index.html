@@ -299,7 +299,9 @@
         .container-grid { display: grid !important; grid-template-columns: repeat(5, auto) !important; gap: 4px !important; }
         .container-coin-ten { display: grid !important; grid-template-columns: repeat(5, auto) !important; gap: 4px !important; }
         .container-ten { flex-direction: column !important; gap: 2px !important; }
-        .coin-table.mode-block .col-one .container-grid { display: flex !important; flex-wrap: nowrap !important; width: auto !important; gap: 4px !important; align-items: center; justify-content: flex-start; }
+        
+        /* 【修正】はみ出しバグを防ぐため、wrapを許可する */
+        .coin-table.mode-block .col-one .container-grid { display: flex !important; flex-wrap: wrap !important; width: 100% !important; gap: 4px !important; align-items: center; justify-content: flex-start; }
 
         .ten-group-box { 
             display: grid !important; grid-template-columns: repeat(5, auto) !important; gap: 2px !important; 
@@ -316,7 +318,9 @@
 
         .token-container.column-layout { flex-direction: column !important; align-items: center !important; }
         .fraction-container { display: grid; grid-template-columns: repeat(5, auto); gap: 4px; margin-top: 8px; }
-        .coin-table.mode-block .col-one .fraction-container { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 4px !important; }
+        
+        /* 【修正】はみ出しバグを防ぐため、wrapを許可する */
+        .coin-table.mode-block .col-one .fraction-container { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 4px !important; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
@@ -352,10 +356,22 @@
             border-radius: 4px;
             font-size: 0.7rem;
         }
+
+        /* 【追加】スマホでのブロックのはみ出しを防ぐレスポンシブ設定 */
+        @media (max-width: 600px) {
+            :root {
+                --block-unit: 14px; /* ブロックを少し小さくして画面内に収める */
+            }
+            .token.coin.coin-1 { width: 30px; height: 30px; font-size: 1rem; }
+            .token.coin.coin-10 { width: 34px; height: 34px; font-size: 1.1rem; }
+            .token.coin.coin-100 { width: 38px; height: 38px; font-size: 1.2rem; }
+            .hissan-cell { font-size: 2.5rem; }
+            .hissan-input { font-size: 2.5rem; }
+        }
     </style>
 </head>
 <body oncontextmenu="return false;">
-    <!-- 【フェイルセーフ】通信エラー等でも絶対にローディングを消して画面を出す -->
+    <!-- 【フェイルセーフ】ローディングを消して画面を出す -->
     <script>
         setTimeout(function() {
             var el = document.getElementById('loading-overlay');
@@ -363,7 +379,7 @@
                 el.style.opacity = '0';
                 setTimeout(function(){ el.style.display = 'none'; }, 300);
             }
-        }, 3000);
+        }, 1500);
     </script>
     
     <!-- ロード中画面 -->
@@ -892,8 +908,12 @@
             if (!state.dragging) return; const { el, proxy, val, sourceKey, index } = state.dragging;
             const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
             proxy.remove(); const target = document.elementFromPoint(cx, cy)?.closest('.coin-zone');
+            
+            // 【修正】ドロップ先が正しい位（1の位、10の位など）であるか厳密にチェックする
             const sourceBaseVal = parseInt(sourceKey.split('-')[1]);
-            const isMatch = (val === sourceBaseVal) || (sourceBaseVal === 1 && (val === 1 || val === 5));
+            const targetBaseVal = target ? parseInt(target.dataset.val) : null;
+            const isMatch = (targetBaseVal === sourceBaseVal) && ((val === sourceBaseVal) || (sourceBaseVal === 1 && (val === 1 || val === 5)));
+            
             if (target && target.dataset.row === 'bot' && isMatch) {
                 if (state.layoutMap[sourceKey] && index !== undefined) state.layoutMap[sourceKey][index].active = false;
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
