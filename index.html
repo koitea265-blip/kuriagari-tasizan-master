@@ -576,14 +576,17 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
+        // --- 保存と読み込み ---
         async function saveProgress() { 
             if (user && db) {
                 try {
                     await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current'), { 
-                        questionCount: state.questionCount, 
+                        questionCount: state.questionCount,
+                        mode: state.mode,
+                        autoAnswer: state.autoAnswer,
                         updatedAt: Date.now() 
                     });
-                } catch(e) { }
+                } catch(e) { console.error("Save error:", e); }
             }
         }
         
@@ -592,10 +595,32 @@
                 try {
                     const snap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'saveData', 'current'));
                     if (snap.exists()) { 
-                        state.questionCount = snap.data().questionCount || 0; 
+                        const data = snap.data();
+                        state.questionCount = data.questionCount || 0; 
+                        
+                        // モード設定の復元
+                        if (data.mode) {
+                            state.mode = data.mode;
+                            Array.from(els.modeRadios).forEach(r => r.checked = (r.value === state.mode));
+                            // 表の表示を更新
+                            if (state.mode === 'coin') {
+                                els.coinTable.classList.remove('mode-block');
+                                els.coinTable.classList.add('mode-coin');
+                            } else {
+                                els.coinTable.classList.remove('mode-coin');
+                                els.coinTable.classList.add('mode-block');
+                            }
+                        }
+                        
+                        // 答え自動設定の復元
+                        if (data.autoAnswer !== undefined) {
+                            state.autoAnswer = data.autoAnswer;
+                            els.settingAnswer.checked = state.autoAnswer;
+                        }
+
                         updateLevelUI(); 
                     }
-                } catch(e) { }
+                } catch(e) { console.error("Load error:", e); }
             }
         }
 
@@ -606,7 +631,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: `Say with extreme enthusiasm and cheerfulness to a child in Japanese: ${text}` }] }],
-                        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
+                        generationConfig: { responseModalalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
                     })
                 });
                 if (!response.ok) return null;
@@ -789,11 +814,6 @@
             syncHissanWithVisuals(); 
         }
         
-        /**
-         * 【修正】同期ロジックの再構築
-         * 一の位：ボタン(carry10Triggered)を押すまではゾーンの総数（12など）を表示。押したら一桁。
-         * 十の位：ゾーンにある数（b10）のみを表示。おろしていない繰り上がり（vc10）は含めない。
-         */
         function syncHissanWithVisuals() {
             if (!els.settingAnswer.checked) return; 
             
@@ -811,25 +831,18 @@
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
-            // くり上がり枠の表示（フラグベース）
+            // くり上がり枠：フラグベース
             els.carry10.value = state.carry10Triggered ? "1" : "";
             els.carry100.value = state.carry100Triggered ? "1" : "";
 
-            // --- 各桁の数値表示 ---
-            
-            // 一の位
+            // 各桁の数値表示
             if (document.getElementById('ans-1')) {
-                // ボタンが押されていなければ「12」など。押されていたら一桁「2」。
                 document.getElementById('ans-1').value = state.carry10Triggered ? (b1 % 10) : b1;
             }
             
-            // 十の位
             if (document.getElementById('ans-10')) {
-                // 実際に「こたえ」エリアに置かれている数(b10)だけを表示。vc10（上の枠にある分）は無視。
                 const currentTens = b10; 
                 const val10 = state.carry100Triggered ? (currentTens % 10) : currentTens;
-                
-                // 表示条件（0サプレス）：こたえエリアにブロックがある、または百の位に何かある、または十の位で繰り上げ済み
                 if (currentTens > 0 || b100 > 0 || state.carry100Triggered) {
                     document.getElementById('ans-10').value = val10;
                 } else {
@@ -837,9 +850,7 @@
                 }
             }
             
-            // 百の位
             if (document.getElementById('ans-100')) {
-                // 実際に置かれている数(b100)だけを表示
                 const currentHundreds = b100;
                 document.getElementById('ans-100').value = currentHundreds === 0 ? "" : currentHundreds;
             }
@@ -886,7 +897,7 @@
             if (u100 * 100 + u10 * 10 + u1 === state.ans) {
                 state.isAnsweredCorrectly = true;
                 state.questionCount++; 
-                saveProgress(); 
+                saveProgress(); // 正解時に保存
                 updateLevelUI(); 
                 
                 if (state.questionCount === 30) speak(praises[8]);
@@ -901,7 +912,7 @@
             } else { speak(praises[9]); }
         }
 
-        // --- 初期化 & イベント ---
+        // --- 初期化 ---
         const initAuth = async () => {
             if (auth) {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -915,7 +926,10 @@
         if (auth) {
             initAuth();
             onAuthStateChanged(auth, async u => { 
-                if (u) { user = u; await loadProgress(); } 
+                if (u) { 
+                    user = u; 
+                    await loadProgress(); // ログインしたら読み込み
+                } 
             });
         }
         
@@ -945,6 +959,7 @@
             els.startBtn.style.display = 'block'; 
         });
 
+        // モード変更時に保存
         Array.from(els.modeRadios).forEach(radio => {
             radio.addEventListener('change', e => {
                 state.mode = e.target.value;
@@ -955,9 +970,17 @@
                     els.coinTable.classList.remove('mode-coin');
                     els.coinTable.classList.add('mode-block');
                 }
+                saveProgress();
                 initVisualCounts();
                 renderVisuals();
             });
+        });
+
+        // 答え自動変更時に保存
+        els.settingAnswer.addEventListener('change', e => {
+            state.autoAnswer = e.target.checked;
+            saveProgress();
+            syncHissanWithVisuals();
         });
 
         document.addEventListener('mousemove', onDragMove); document.addEventListener('mouseup', onDragEnd);
