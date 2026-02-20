@@ -80,7 +80,7 @@
             padding: 4px 12px; 
             position: absolute; 
             left: 5px;
-            top: 5px; 
+            top: 0px; 
             z-index: 1000;
         }
 
@@ -329,7 +329,7 @@
 
     <div class="app-container">
         <header>
-            <button id="back-to-home-btn" class="btn">◀ もどる</button>
+            <button id="back-to-home-btn" class="btn" style="display:none;">◀ もどる</button>
             <h1>くり上がりのあるたし算をマスターしよう</h1>
             
             <div id="header-controls" class="controls" style="display:none;">
@@ -495,7 +495,6 @@
         <div id="user-id-footer" class="user-id-footer"></div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
@@ -528,7 +527,7 @@
             modeRadios: document.getElementsByName('display-mode-radio')
         };
 
-        // 安全なFirebase初期化
+        // Firebase初期化
         let app, auth, db;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'math-hissan-app';
         
@@ -543,6 +542,8 @@
 
         let currentAudio = null;
         let user = null;
+        
+        // 状態管理（isPlayingを追加して画面状態を保存）
         const state = {
             num1: 0, num2: 0, ans: 0, mode: 'coin', autoAnswer: false, questionCount: 0,
             isAnsweredCorrectly: false, audioContextStarted: false, audioCache: {},
@@ -551,7 +552,8 @@
             titles: ["たしざん みならい", "たしざん しゅぎょうちゅう", "たしざん めいじん", "たしざん たつじん", "たしざん おう", "ひっさんの かみさま"],
             counts: {}, layoutMap: {}, dragging: null,
             carry10Triggered: false,
-            carry100Triggered: false
+            carry100Triggered: false,
+            isPlaying: false 
         };
 
         const praises = [
@@ -568,7 +570,6 @@
             "つぎの もんだいを おしてね"
         ];
 
-        // 状態更新用関数
         function updateLevelUI() {
             const levelNum = Math.floor(state.questionCount / 5) + 1;
             if (els.levelDisplay) els.levelDisplay.textContent = `レベル: ${levelNum}`;
@@ -576,7 +577,7 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
-        // --- 保存と読み込み ---
+        // --- 進行状況と設定のクラウド保存・読み込み ---
         async function saveProgress() { 
             if (user && db) {
                 try {
@@ -584,6 +585,10 @@
                         questionCount: state.questionCount,
                         mode: state.mode,
                         autoAnswer: state.autoAnswer,
+                        isPlaying: state.isPlaying,
+                        num1: state.num1,
+                        num2: state.num2,
+                        ans: state.ans,
                         updatedAt: Date.now() 
                     });
                 } catch(e) { console.error("Save error:", e); }
@@ -598,11 +603,9 @@
                         const data = snap.data();
                         state.questionCount = data.questionCount || 0; 
                         
-                        // モード設定の復元
                         if (data.mode) {
                             state.mode = data.mode;
                             Array.from(els.modeRadios).forEach(r => r.checked = (r.value === state.mode));
-                            // 表の表示を更新
                             if (state.mode === 'coin') {
                                 els.coinTable.classList.remove('mode-block');
                                 els.coinTable.classList.add('mode-coin');
@@ -612,13 +615,40 @@
                             }
                         }
                         
-                        // 答え自動設定の復元
                         if (data.autoAnswer !== undefined) {
                             state.autoAnswer = data.autoAnswer;
                             els.settingAnswer.checked = state.autoAnswer;
                         }
 
                         updateLevelUI(); 
+
+                        // プレイ画面にいた場合は問題と画面を復元する
+                        if (data.isPlaying && data.num1 !== undefined) {
+                            state.isPlaying = true;
+                            state.num1 = data.num1;
+                            state.num2 = data.num2;
+                            state.ans = data.ans;
+                            
+                            els.instruction.style.display = 'none'; 
+                            els.workspace.style.display = 'flex'; 
+                            els.headerControls.style.display = 'flex'; 
+                            els.backToHomeBtn.style.display = 'inline-block';
+                            els.startBtn.style.display = 'none'; 
+                            els.nextBtn.style.display = 'inline-block'; 
+                            
+                            els.input1.value = state.num1;
+                            els.input2.value = state.num2;
+                            els.headerAns.value = "?";
+                            els.msg.textContent = "";
+                            
+                            state.isAnsweredCorrectly = false;
+                            state.carry10Triggered = false;
+                            state.carry100Triggered = false;
+                            
+                            initVisualCounts(); 
+                            renderVisuals(); 
+                            renderHissan();
+                        }
                     }
                 } catch(e) { console.error("Load error:", e); }
             }
@@ -631,7 +661,7 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: `Say with extreme enthusiasm and cheerfulness to a child in Japanese: ${text}` }] }],
-                        generationConfig: { responseModalalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
+                        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
                     })
                 });
                 if (!response.ok) return null;
@@ -672,7 +702,12 @@
             }
         }
 
-        async function resetProgress() { state.questionCount = 0; state.isAnsweredCorrectly = false; updateLevelUI(); await saveProgress(); generateNextProblem(); }
+        async function resetProgress() { 
+            state.questionCount = 0; 
+            state.isAnsweredCorrectly = false; 
+            updateLevelUI(); 
+            generateNextProblem(); 
+        }
 
         function initVisualCounts() {
             const d1 = { 100: Math.floor(state.num1 / 100), 10: Math.floor((state.num1 % 100) / 10), 1: state.num1 % 10 };
@@ -807,7 +842,6 @@
             state.counts[sourceKey] -= 10; 
             state.counts[`carry-${val*10}`]++; 
             state.layoutMap[`carry-${val*10}`].push({val: val*10, active: true}); 
-            // くり上げボタンを押したのでフラグを確定させる
             if (val === 1) state.carry10Triggered = true;
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
@@ -823,7 +857,6 @@
             const vc10 = state.counts['carry-10'];
             const vc100 = state.counts['carry-100'];
 
-            // 初期状態判定
             if (b1 === 0 && b10 === 0 && b100 === 0 && vc10 === 0 && vc100 === 0 && !state.carry10Triggered && !state.carry100Triggered) {
                 if (document.getElementById('ans-1')) document.getElementById('ans-1').value = "";
                 if (document.getElementById('ans-10')) document.getElementById('ans-10').value = "";
@@ -831,11 +864,9 @@
                 els.carry10.value = ""; els.carry100.value = ""; return;
             }
 
-            // くり上がり枠：フラグベース
             els.carry10.value = state.carry10Triggered ? "1" : "";
             els.carry100.value = state.carry100Triggered ? "1" : "";
 
-            // 各桁の数値表示
             if (document.getElementById('ans-1')) {
                 document.getElementById('ans-1').value = state.carry10Triggered ? (b1 % 10) : b1;
             }
@@ -886,6 +917,9 @@
             else if (count <= 20) { const { u1, u2 } = getUnitWithCarry(); const t1 = Math.floor(Math.random() * 7) + 1; const maxT2 = 8 - t1; const t2 = Math.floor(Math.random() * maxT2) + 1; n1 = t1 * 10 + u1; n2 = t2 * 10 + u2; } 
             else { const { u1, u2 } = getUnitWithCarry(); const t1 = Math.floor(Math.random() * 9) + 1; const minT2 = 9 - t1; const t2 = Math.floor(Math.random() * (9 - minT2 + 1)) + minT2; n1 = t1 * 10 + u1; n2 = t2 * 10 + u2; }
             state.num1 = n1; state.num2 = n2; state.ans = n1 + n2; 
+            
+            saveProgress(); // 問題が変わったので保存
+            
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); renderVisuals(); renderHissan(); 
             els.headerAns.value = "?"; els.msg.textContent = "";
@@ -897,7 +931,7 @@
             if (u100 * 100 + u10 * 10 + u1 === state.ans) {
                 state.isAnsweredCorrectly = true;
                 state.questionCount++; 
-                saveProgress(); // 正解時に保存
+                saveProgress(); 
                 updateLevelUI(); 
                 
                 if (state.questionCount === 30) speak(praises[8]);
@@ -912,30 +946,33 @@
             } else { speak(praises[9]); }
         }
 
-        // --- 初期化 ---
         const initAuth = async () => {
             if (auth) {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch(e) { console.error("Auth error:", e); }
             }
         };
         
         if (auth) {
-            initAuth();
-            onAuthStateChanged(auth, async u => { 
-                if (u) { 
-                    user = u; 
-                    await loadProgress(); // ログインしたら読み込み
-                } 
+            initAuth().then(() => {
+                onAuthStateChanged(auth, async u => { 
+                    if (u) { 
+                        user = u; 
+                        await loadProgress(); 
+                    } 
+                });
             });
         }
         
         els.startBtn.addEventListener('click', async () => { 
             try {
                 await unlockAudio(); 
+                state.isPlaying = true;
                 els.workspace.style.display = 'flex'; 
                 els.instruction.style.display = 'none'; 
                 els.headerControls.style.display = 'flex'; 
@@ -952,6 +989,8 @@
         els.resetBtn.addEventListener('click', resetProgress);
         
         els.backToHomeBtn.addEventListener('click', () => { 
+            state.isPlaying = false;
+            saveProgress();
             els.workspace.style.display = 'none'; 
             els.headerControls.style.display = 'none'; 
             els.instruction.style.display = 'flex'; 
@@ -959,7 +998,6 @@
             els.startBtn.style.display = 'block'; 
         });
 
-        // モード変更時に保存
         Array.from(els.modeRadios).forEach(radio => {
             radio.addEventListener('change', e => {
                 state.mode = e.target.value;
@@ -976,7 +1014,6 @@
             });
         });
 
-        // 答え自動変更時に保存
         els.settingAnswer.addEventListener('change', e => {
             state.autoAnswer = e.target.checked;
             saveProgress();
