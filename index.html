@@ -338,6 +338,19 @@
             margin-top: 5px;
             padding-top: 5px;
             border-top: 1px solid #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        /* デバッグ・ID確認用 */
+        #user-id-footer {
+            font-family: monospace;
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
         }
     </style>
 </head>
@@ -490,7 +503,8 @@
             </div>
             
             <footer class="footer-credit">
-                &copy;2026　くり上がりのあるたし算マスター　ＩＣＴ支援の杜
+                <span>&copy;2026　くり上がりのあるたし算マスター　ＩＣＴ支援の杜</span>
+                <span id="user-id-footer"></span>
             </footer>
         </div>
 
@@ -524,7 +538,6 @@
                 </div>
             </section>
         </main>
-        <div id="user-id-footer" class="user-id-footer"></div>
     </div>
 
     <script type="module">
@@ -557,7 +570,8 @@
             headerControls: document.getElementById('header-controls'),
             backToHomeBtn: document.getElementById('back-to-home-btn'),
             modeRadios: document.getElementsByName('display-mode-radio'),
-            loadingOverlay: document.getElementById('loading-overlay') 
+            loadingOverlay: document.getElementById('loading-overlay'),
+            userIdFooter: document.getElementById('user-id-footer')
         };
 
         // Firebase初期化
@@ -621,7 +635,7 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
-        // --- エラーで弾かれないように完全に文字列化（JSON）して保存 ---
+        // 完全にクリーンな文字列データとして保存（エラーで弾かれないようにするため）
         function getCleanStateData() {
             return {
                 questionCount: state.questionCount,
@@ -631,7 +645,6 @@
                 num1: state.num1,
                 num2: state.num2,
                 ans: state.ans,
-                // DOMへの参照等が混じらないよう、必ず文字列に変換して保存する
                 countsStr: JSON.stringify(state.counts),
                 layoutMapStr: JSON.stringify(state.layoutMap),
                 carry10Triggered: state.carry10Triggered,
@@ -640,7 +653,7 @@
             };
         }
 
-        // 直ちに保存を行う（デバウンスを廃止し、確実にクラウドへ送る）
+        // ブロックを動かすたびに「即座に」保存を実行
         async function saveProgress() { 
             if (user && db) {
                 try {
@@ -683,7 +696,7 @@
                             state.num2 = data.num2;
                             state.ans = data.ans;
                             
-                            // 文字列化された盤面データを復元する
+                            // 文字列化された盤面データを完全に復元
                             if (data.countsStr) state.counts = JSON.parse(data.countsStr);
                             if (data.layoutMapStr) state.layoutMap = JSON.parse(data.layoutMapStr);
                             if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
@@ -898,7 +911,7 @@
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
                 renderVisuals(); 
                 syncHissanWithVisuals();
-                saveProgress(); 
+                saveProgress(); // 操作のたびに確実保存
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -911,7 +924,7 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
-            saveProgress(); 
+            saveProgress(); // 操作のたびに確実保存
         }
         
         function syncHissanWithVisuals() {
@@ -1017,31 +1030,35 @@
 
         // --- 強固な初期化・認証シーケンス ---
         const initApp = async () => {
-            if (auth) {
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                    
-                    // onAuthStateChanged でログイン確定を確実に待つ
-                    onAuthStateChanged(auth, async u => { 
-                        if (u) { 
-                            user = u; 
-                            await loadProgress(); 
-                            // 全て完了してからローディング画面を消す
-                            els.loadingOverlay.style.opacity = '0';
-                            setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
-                        } 
-                    });
-                } catch(e) { 
-                    console.error("Auth/Load error:", e); 
-                    els.loadingOverlay.style.display = 'none';
-                } 
-            } else {
+            if (!auth) {
                 els.loadingOverlay.style.display = 'none';
+                return;
             }
+            try {
+                // 認証を完全に完了させる
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                // 認証が完了し、ユーザーが確定したタイミングでデータをロード
+                onAuthStateChanged(auth, async u => { 
+                    if (u) { 
+                        user = u; 
+                        if(els.userIdFooter) {
+                            els.userIdFooter.textContent = 'ID: ' + user.uid; // デバッグ用ID表示
+                        }
+                        await loadProgress(); 
+                    } 
+                    // 全て完了してからローディング画面を消す
+                    els.loadingOverlay.style.opacity = '0';
+                    setTimeout(() => els.loadingOverlay.style.display = 'none', 300);
+                });
+            } catch(e) { 
+                console.error("Auth/Load error:", e); 
+                els.loadingOverlay.style.display = 'none';
+            } 
         };
         
         initApp();
