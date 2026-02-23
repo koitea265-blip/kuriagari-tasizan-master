@@ -243,12 +243,12 @@
             border: 1px solid #eee; 
             border-radius: 15px; 
             padding: 5px; 
-            overflow-y: auto; /* 親パネル自体の縦スクロールを許可 */
+            overflow-y: auto;
             overflow-x: hidden;
             min-height: 0; 
             box-sizing: border-box; 
-            display: block; /* 中身に合わせて自然に伸びるように変更 */
-            -webkit-overflow-scrolling: touch; /* スマホ・タブレットでのスムーズスクロール */
+            display: block;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* パネル全体へのスクロールバーのデザイン */
@@ -288,7 +288,7 @@
         .coin-zone.result-row { 
             border-top: 4px solid #666; 
             position: relative;
-            z-index: 50; /* 【修正】境界横線より手前に表示させる */
+            z-index: 50;
         }
 
         .zone-label { position: absolute; bottom: 2px; left: 5px; font-size: 0.65rem; color: rgba(0,0,0,0.2); pointer-events: none; }
@@ -340,7 +340,6 @@
         .ten-group-box:hover { background-color: rgba(255, 87, 34, 0.15); }
         .ten-group-box:active { transform: scale(0.98); }
 
-        /* 【修正】ボタンを少し上に持ち上げ、影をつけて手前にあることを強調 */
         .regroup-btn { 
             position: absolute; 
             top: -32px; 
@@ -391,7 +390,6 @@
             gap: 15px;
         }
         
-        /* デバッグ・ID確認用 */
         #user-id-footer {
             font-family: monospace;
             background: #eee;
@@ -400,21 +398,43 @@
             font-size: 0.7rem;
         }
 
-        /* スマホでのブロックのはみ出しを防ぐレスポンシブ設定 */
-        @media (max-width: 600px) {
+        /* スマホ向けのレスポンシブ設定（画面幅が狭い場合は縦並びにして崩れを防ぐ） */
+        @media (max-width: 800px) {
+            :root {
+                --block-unit: 18px; 
+            }
+            .workspace { flex-direction: column; overflow-y: auto; align-items: center; }
+            .calc-panel { flex: 0 0 auto; width: 100%; max-width: 400px; min-height: 250px; }
+            .visual-panel { flex: 0 0 auto; width: 100%; min-height: 400px; overflow-y: visible; }
+            
+            .token.coin.coin-1 { width: 36px; height: 36px; font-size: 1rem; }
+            .token.coin.coin-10 { width: 40px; height: 40px; font-size: 1.1rem; }
+            .token.coin.coin-100 { width: 44px; height: 44px; font-size: 1.2rem; }
+            
+            h1 { font-size: 1.5rem; }
+            .formula-row { font-size: 0.9rem; padding: 4px 8px; }
+            .num-input { width: 40px; height: 30px; font-size: 1.2rem; }
+        }
+        
+        @media (max-width: 500px) {
             :root {
                 --block-unit: 14px; 
             }
-            .token.coin.coin-1 { width: 30px; height: 30px; font-size: 1rem; }
-            .token.coin.coin-10 { width: 34px; height: 34px; font-size: 1.1rem; }
-            .token.coin.coin-100 { width: 38px; height: 38px; font-size: 1.2rem; }
+            .token.coin.coin-1 { width: 30px; height: 30px; font-size: 0.9rem; }
+            .token.coin.coin-10 { width: 34px; height: 34px; font-size: 1rem; }
+            .token.coin.coin-100 { width: 38px; height: 38px; font-size: 1.1rem; }
             .hissan-cell { font-size: 2.5rem; }
             .hissan-input { font-size: 2.5rem; }
+            .hissan-grid { grid-template-columns: repeat(3, 60px); grid-template-rows: 60px 60px 60px; }
+            .operator { font-size: 2.5rem; }
+            .carry-box { width: 28px; height: 28px; top: -32px; font-size: 1rem; line-height: 28px; }
+            .carry-box.tens { left: 75px; } 
+            .carry-box.hundreds { left: 15px; } 
         }
     </style>
 </head>
 <body oncontextmenu="return false;">
-    <!-- 【フェイルセーフ】ローディングを消して画面を出す -->
+    <!-- ローディングを消して画面を出す -->
     <script>
         setTimeout(function() {
             var el = document.getElementById('loading-overlay');
@@ -573,7 +593,7 @@
             </div>
             
             <footer class="footer-credit">
-                <span>&copy;2026　くり上がりのあるたし算マスター　ＩＣＴ支援の杜</span>
+                <span>&copy;2026 くり上がりのあるたし算マスター ＩＣＴ支援の杜</span>
                 <!-- ID確認用 -->
                 <span id="user-id-footer"></span>
             </footer>
@@ -678,7 +698,6 @@
             if (els.counterDisplay) els.counterDisplay.textContent = `${state.questionCount}／30もん`;
         }
 
-        // --- エラーで保存が弾かれないようにデータをシンプル化（JSON文字列） ---
         function getCleanStateData() {
             return {
                 questionCount: state.questionCount,
@@ -688,7 +707,6 @@
                 num1: state.num1,
                 num2: state.num2,
                 ans: state.ans,
-                // DOMなどが混入してエラーにならないよう、純粋な文字列として保存
                 countsStr: JSON.stringify(state.counts),
                 layoutMapStr: JSON.stringify(state.layoutMap),
                 carry10Triggered: state.carry10Triggered,
@@ -697,7 +715,6 @@
             };
         }
 
-        // 「操作した瞬間」に必ずローカルストレージへ保存を実行する
         function saveProgress() { 
             try {
                 const cleanData = getCleanStateData();
@@ -705,7 +722,6 @@
             } catch(e) { console.error("Save error:", e); }
         }
         
-        // ブラウザ更新時（閉じる直前）にも最後のあがきで保存する
         window.addEventListener('beforeunload', () => {
             saveProgress();
         });
@@ -736,14 +752,12 @@
 
                     updateLevelUI(); 
 
-                    // 前回の画面が「計算中」だった場合、盤面と問題を完全に復元
                     if (data.isPlaying && data.num1 !== undefined) {
                         state.isPlaying = true;
                         state.num1 = data.num1;
                         state.num2 = data.num2;
                         state.ans = data.ans;
                         
-                        // 文字列化された盤面データを完全に復元
                         if (data.countsStr) state.counts = JSON.parse(data.countsStr);
                         if (data.layoutMapStr) state.layoutMap = JSON.parse(data.layoutMapStr);
                         if (data.carry10Triggered !== undefined) state.carry10Triggered = data.carry10Triggered;
@@ -763,7 +777,6 @@
                         
                         state.isAnsweredCorrectly = false;
                         
-                        // もしデータがおかしかったら初期化
                         if (!data.countsStr || Object.keys(state.counts).length === 0) {
                             initVisualCounts(); 
                         }
@@ -935,7 +948,6 @@
         function onDragStart(e, el, val, sourceKey) {
             if (el.classList.contains('ghost')) return; 
             
-            // 順番を厳密に守らせるためのドラッグ制限
             if (val === 10 && sourceKey !== 'carry-100' && sourceKey !== 'bot-100') { 
                 if (state.counts['top-1'] > 0 || state.counts['mid-1'] > 0) { 
                     speak("まずは、いちの くらいから、うごかそうね！"); e.preventDefault(); return; 
@@ -969,7 +981,6 @@
             const cx = e.changedTouches ? e.changedTouches[0].clientX : e.clientX; const cy = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
             proxy.remove(); const target = document.elementFromPoint(cx, cy)?.closest('.coin-zone');
             
-            // ドロップ先が正しい位（1の位、10の位など）であるか厳密にチェックする
             const sourceBaseVal = parseInt(sourceKey.split('-')[1]);
             const targetBaseVal = target ? parseInt(target.dataset.val) : null;
             const isMatch = (targetBaseVal === sourceBaseVal) && ((val === sourceBaseVal) || (sourceBaseVal === 1 && (val === 1 || val === 5)));
@@ -979,7 +990,7 @@
                 const unitDelta = val / sourceBaseVal; state.counts[sourceKey] -= unitDelta; state.counts[`bot-${sourceBaseVal}`] += unitDelta; 
                 renderVisuals(); 
                 syncHissanWithVisuals();
-                saveProgress(); // 操作のたびに即座に保存
+                saveProgress();
             } else { el.classList.remove('ghost'); }
             state.dragging = null;
         }
@@ -992,7 +1003,7 @@
             if (val === 10) state.carry100Triggered = true;
             renderVisuals(); 
             syncHissanWithVisuals(); 
-            saveProgress(); // 操作のたびに即座に保存
+            saveProgress();
         }
         
         function syncHissanWithVisuals() {
@@ -1060,18 +1071,17 @@
             let n1, n2; const count = state.questionCount + 1;
             const getUnitWithCarry = () => { const u1 = Math.floor(Math.random() * 9) + 1; const minU2 = 10 - u1; const u2 = Math.floor(Math.random() * (9 - minU2 + 1)) + minU2; return { u1, u2 }; };
             
-            // レベルごとの問題設定の厳格化
-            if (count <= 5) { // レベル1
+            if (count <= 5) { 
                 const { u1, u2 } = getUnitWithCarry(); 
                 n1 = (Math.floor(Math.random() * 5) + 1) * 10 + u1; 
                 n2 = u2; 
             } 
-            else if (count <= 10) { // レベル2 (絶対に100には行かないように最大80までに制限)
+            else if (count <= 10) { 
                 const { u1, u2 } = getUnitWithCarry(); 
                 n1 = (Math.floor(Math.random() * 8) + 1) * 10 + u1; 
                 n2 = u2; 
             } 
-            else if (count <= 20) { // レベル3, 4
+            else if (count <= 20) { 
                 const { u1, u2 } = getUnitWithCarry(); 
                 const t1 = Math.floor(Math.random() * 7) + 1; 
                 const maxT2 = 8 - t1; 
@@ -1079,7 +1089,7 @@
                 n1 = t1 * 10 + u1; 
                 n2 = t2 * 10 + u2; 
             } 
-            else { // レベル5, 6
+            else { 
                 const { u1, u2 } = getUnitWithCarry(); 
                 const t1 = Math.floor(Math.random() * 9) + 1; 
                 const minT2 = 9 - t1; 
@@ -1092,7 +1102,7 @@
             els.input1.value = n1; els.input2.value = n2; 
             initVisualCounts(); 
             
-            saveProgress(); // 新問題の初期状態を保存
+            saveProgress();
             
             renderVisuals(); 
             renderHissan(); 
@@ -1120,7 +1130,6 @@
             } else { speak(praises[9]); }
         }
 
-        // --- 確実な初期化シーケンス（ローカル保存版） ---
         const initApp = () => {
             const hideLoading = () => {
                 if (els.loadingOverlay.style.display !== 'none') {
@@ -1133,7 +1142,6 @@
                 if(els.userIdFooter) {
                     els.userIdFooter.textContent = 'ローカル保存モード';
                 }
-                // ローカルストレージからデータを読み込む
                 loadProgress(); 
             } catch(e) { 
                 console.error("Init error:", e); 
@@ -1142,7 +1150,6 @@
             }
         };
         
-        // ページを開いた時に実行
         initApp();
         
         els.startBtn.addEventListener('click', async () => { 
@@ -1163,7 +1170,6 @@
         els.checkBtn.addEventListener('click', () => { unlockAudio(); checkAnswer(); });
         els.modalClose.addEventListener('click', () => { els.masterModal.style.display = 'none'; generateNextProblem(); });
         
-        // リセット処理
         els.resetBtn.addEventListener('click', () => {
             if (confirm("ほんとうに 最初から やり直しますか？\n（これまでの記録が 0 になります）")) {
                 resetProgress();
